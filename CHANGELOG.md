@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.2
+
+- Add HACS, hassfest and regression-test GitHub Actions without ignored checks.
+- Add the Govee brand icon inside the integration folder.
+- Add Marketplace categories and normalize manifest ordering.
+- Keep the HACS manifest minimal and document catalog submission requirements.
+- Preserve the `govee_native` domain and existing entity IDs.
+
 ## 0.4.1
 
 - Keep one slider style for lights, switches, fans, humidifiers and H6199 segments.

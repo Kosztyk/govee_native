@@ -1,19 +1,24 @@
 {
   "domain": "govee_native",
   "name": "Govee Native",
+  "categories": [
+    "lighting",
+    "climate",
+    "sensors"
+  ],
   "codeowners": [
     "@Kosztyk"
   ],
   "config_flow": true,
+  "dependencies": [
+    "bluetooth_adapters"
+  ],
   "documentation": "https://github.com/Kosztyk/govee_native",
-  "issue_tracker": "https://github.com/Kosztyk/govee_native/issues",
   "integration_type": "hub",
   "iot_class": "cloud_push",
+  "issue_tracker": "https://github.com/Kosztyk/govee_native/issues",
   "requirements": [
     "aiomqtt==2.5.1"
   ],
-  "version": "0.4.1",
-  "dependencies": [
-    "bluetooth_adapters"
-  ]
+  "version": "0.4.2"
 }

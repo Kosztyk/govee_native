@@ -1,9 +1,13 @@
 # Govee Native
 
+[![HACS](https://github.com/Kosztyk/govee_native/actions/workflows/hacs.yaml/badge.svg)](https://github.com/Kosztyk/govee_native/actions/workflows/hacs.yaml)
+[![Hassfest](https://github.com/Kosztyk/govee_native/actions/workflows/hassfest.yaml/badge.svg)](https://github.com/Kosztyk/govee_native/actions/workflows/hassfest.yaml)
+[![Tests](https://github.com/Kosztyk/govee_native/actions/workflows/tests.yaml/badge.svg)](https://github.com/Kosztyk/govee_native/actions/workflows/tests.yaml)
+
 Control Govee devices from Home Assistant using a Govee Home account, the
 Developer API, and supported local connections.
 
-**Version:** 0.4.1 · **Home Assistant:** 2026.11.0 or newer ·
+**Version:** 0.4.2 · **Home Assistant:** 2026.11.0 or newer ·
 **Integration domain:** `govee_native`
 
 This is a community custom integration. It discovers the capabilities available
@@ -101,10 +105,11 @@ All options, firmware profiles and connection priorities are explained in
 | [Testing](docs/TESTING.md) | Test environment, commands, results and hardware validation limits. |
 | [Protocol notes](docs/PROTOCOL_NOTES.md) | Implementation references and reverse-engineering scope. |
 | [Changelog](CHANGELOG.md) | Version history. |
+| [HACS submission](docs/HACS_SUBMISSION.md) | Repository requirements and validation evidence for a catalog PR. |
 
 ## How it was tested
 
-The 0.4.1 software regression suite passed **90 tests** against real Home
+The 0.4.2 software regression suite passed **90 tests** against real Home
 Assistant **2026.11.0** classes on Python **3.14.9**. Tests cover MQTT routing and
 confirmation, Bluetooth packet handling, LAN freshness, state reconciliation,
 entity setup/unload, options validation and consistent slider states. Runtime

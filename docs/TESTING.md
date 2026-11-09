@@ -7,10 +7,10 @@
 - aiomqtt 2.5.1 and the pinned Bluetooth/testing dependencies in
   [`requirements-test.txt`](../requirements-test.txt).
 
-The 0.4.1 suite passed **90 tests**, with zero failures. Five warnings came
+The 0.4.2 suite passed **90 tests**, with zero failures. Five warnings came
 from Home Assistant HTTP/backoff dependencies. The runtime `F` and `E9` lint
 checks and Python compilation passed. The suite was rerun for this repository
-publication after the repository links and synthetic fixture IDs were updated.
+HACS preparation after the manifest metadata and version were updated.
 
 ## What the tests cover
 

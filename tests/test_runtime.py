@@ -271,7 +271,7 @@ async def test_diagnostic_catalog_ids_are_hashed(coordinator):
     c.app_catalogs[f"scenes_{d.device_id}"] = {"data": []}
     result = await async_get_config_entry_diagnostics(c.hass, SimpleNamespace(entry_id="entry"))
     assert d.device_id not in json.dumps(result)
-    assert result["version"] == "0.4.1"
+    assert result["version"] == "0.4.2"
 
 
 def test_lan_status_updates_temperature_mode_and_freshness():

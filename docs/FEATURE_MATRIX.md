@@ -1,4 +1,4 @@
-# Feature coverage — 0.4.1
+# Feature coverage — 0.4.2
 
 “Implemented” means code exists and its packet/state behavior was tested locally.
 It does not mean every feature was physically exercised on every H6199.

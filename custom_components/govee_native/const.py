@@ -4,7 +4,7 @@ from datetime import timedelta
 
 DOMAIN = "govee_native"
 NAME = "Govee Native"
-VERSION = "0.4.1"
+VERSION = "0.4.2"
 API_BASE = "https://openapi.api.govee.com/router/api/v1"
 CONF_API_KEY = "api_key"
 CONF_POLL_SECONDS = "poll_seconds"
