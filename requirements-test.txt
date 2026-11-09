@@ -1,0 +1,15 @@
+# Reproduces the local Python 3.14 test environment; not HA runtime requirements.
+homeassistant==2026.11.0
+aiomqtt==2.5.1
+pytest==9.2.0
+pytest-asyncio==1.4.1.post1
+bleak==3.0.2
+bleak-retry-connector==4.7.1
+bluetooth-adapters==2.4.0
+bluetooth-auto-recovery==1.6.4
+bluetooth-data-tools==1.29.24
+dbus-fast==5.0.22
+habluetooth==7.1.2
+aiousbwatcher==1.1.2
+serialx==1.15.1
+aiohasupervisor==0.8.1

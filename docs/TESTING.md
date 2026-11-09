@@ -1,0 +1,75 @@
+# Testing and validation
+
+## Recorded environment
+
+- CPython 3.14.9 on Linux.
+- Home Assistant 2026.11.0, using its real entity, coordinator, config-entry and selector classes.
+- aiomqtt 2.5.1 and the pinned Bluetooth/testing dependencies in
+  [`requirements-test.txt`](../requirements-test.txt).
+
+The 0.4.1 suite passed **90 tests**, with zero failures. Five warnings came
+from Home Assistant HTTP/backoff dependencies. The runtime `F` and `E9` lint
+checks and Python compilation passed. The suite was rerun for this repository
+publication after the repository links and synthetic fixture IDs were updated.
+
+## What the tests cover
+
+| Area | Checks |
+|---|---|
+| Account/API parsing | Device normalization, authentication errors, capability validation and scene/shortcut parsing. |
+| MQTT | Account reply routing, command/query envelopes, genuine status decoding, echo rejection, pacing and concurrent write ordering. |
+| Confirmation | Fast feedback races, timeout/fallback/cooldown and no false confirmation from a broker acknowledgment. |
+| State | Fresh push data survives stale/empty cloud reads; real device reports reconcile assumptions. |
+| Bluetooth | H6199 original/updated frames, segment masks, address validation, stale discovery and disconnect cleanup. |
+| LAN | Device identification, color mode, fresh status and UDP handling. |
+| Entities | Platform construction, stable unique IDs, setup/unload and action cleanup. |
+| Controls | Real HA state serialization through startup, unconfirmed on/off commands and later device feedback for slider controls. |
+| Options | Existing settings are retained; Bluetooth address input is validated. |
+| Diagnostics | Identity redaction and distinction between broker availability and device feedback. |
+
+## Run the suite
+
+From the repository root, create a separate Python 3.14 environment:
+
+```bash
+python3.14 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements-test.txt
+python -m pytest -q
+```
+
+Optional static checks:
+
+```bash
+python -m pip install ruff
+python -m ruff check --select F,E9 custom_components/govee_native
+python -m compileall -q custom_components/govee_native
+```
+
+`requirements-test.txt` is for development. Home Assistant manages the runtime
+dependencies listed in the integration manifest.
+
+## What these results do not establish
+
+HTTP, MQTT broker and Bluetooth/GATT boundaries are simulated. Packet tests
+use recorded/reference protocol behavior; they are not physical acceptance
+tests of every device, firmware, Bluetooth adapter or network. Read-only
+inspection of a configured Home Assistant installation informed development,
+but it does not prove every write control works on hardware.
+
+The reported options-dialog Submit issue has not been reproduced. A successful
+ordinary save-path check does not certify every browser interaction or input.
+
+## Practical hardware check after installation
+
+1. Use the main light to turn on/off, change brightness and set RGB; check the
+   physical light as well as its displayed state.
+2. Inspect the connection sensor, transport/result attributes and confirmation
+   counters. A broker acknowledgment alone should not be treated as device feedback.
+3. If configured, check LAN and direct Bluetooth separately on supported hardware.
+4. For an H6199, check video mode, Gradient, music and one enabled segment;
+   select the compatible firmware profile.
+5. Change one integration option, submit it and reopen Configure to confirm it
+   was retained. Include this step when reporting an options-form issue.
+6. Test existing automations with the intended Native entities before retiring
+   another integration.

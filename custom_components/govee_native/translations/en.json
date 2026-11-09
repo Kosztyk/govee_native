@@ -1,0 +1,81 @@
+{
+  "title": "Govee Native",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Govee Native — Android account",
+        "description": "Provide the Govee Home email/password to use the private Android app API. Developer API key is optional for full capability controls. An email code may be required.",
+        "data": {
+          "email": "Govee Home account email",
+          "password": "Govee account password",
+          "api_key": "Optional Govee Developer API key"
+        }
+      },
+      "verify": {
+        "title": "Verify Govee Home account",
+        "description": "Enter the verification code Govee emailed to your account. Codes expire after roughly 15 minutes.",
+        "data": {
+          "code": "Email verification code"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Reconnect Govee Home account",
+        "data": {
+          "password": "Govee account password",
+          "api_key": "Developer API key (optional)"
+        }
+      },
+      "reauth_verify": {
+        "title": "Verify account again",
+        "data": {
+          "code": "Email verification code"
+        }
+      }
+    },
+    "error": {
+      "invalid_input": "Enter email and password together, or provide a Developer API key",
+      "invalid_auth": "Govee account login failed",
+      "invalid_key": "Developer API key rejected",
+      "invalid_code": "The verification code was rejected",
+      "cannot_send_code": "Could not send the Govee verification email",
+      "cannot_connect": "Could not connect to Govee"
+    },
+    "abort": {
+      "already_configured": "This Govee account is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Govee Native options",
+        "data": {
+          "poll_seconds": "Cloud polling interval (seconds)",
+          "app_mqtt": "Use private AWS IoT MQTT (Govee app account)",
+          "app_catalogs": "Read Android app catalogs",
+          "lan_control": "Enable local LAN control",
+          "mqtt_events": "Enable official Developer API events",
+          "private_mutations": "Allow advanced private-app write methods (experimental)",
+          "use_legacy_api_key": "Use existing legacy Govee Developer API key for scenes and fallback (opt-in; may increase API traffic)",
+          "bluetooth_control": "Enable direct H6199 Bluetooth control",
+          "prefer_bluetooth": "Prefer Bluetooth after LAN, before cloud MQTT",
+          "configure_bluetooth": "Set a Bluetooth address for an H6199",
+          "h6199_profile": "H6199 firmware protocol profile"
+        }
+      },
+      "bluetooth": {
+        "title": "H6199 Bluetooth address",
+        "description": "Select your backlight and enter its six-byte Bluetooth MAC address, shown in the Govee app device information or Home Assistant Bluetooth discovery. Use this when automatic account metadata does not provide it.",
+        "data": {
+          "device_id": "Backlight",
+          "address": "Bluetooth MAC address (AA:BB:CC:DD:EE:FF)"
+        }
+      }
+    },
+    "error": {
+      "invalid_bluetooth_address": "Select an H6199 and enter a six-byte MAC address separated by colons."
+    },
+    "abort": {
+      "no_bluetooth_devices": "No H6199 backlight was discovered in this account."
+    }
+  }
+}

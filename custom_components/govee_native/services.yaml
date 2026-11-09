@@ -1,0 +1,84 @@
+set_segments:
+  name: Set RGBIC segments
+  description: Set zero-based RGBIC regions using H6199 Bluetooth/MQTT passthrough, or advertised OpenAPI capabilities. H6199 color regions are 0 through 14; independent region brightness requires a supported OpenAPI capability.
+  fields:
+    device_id:
+      required: true
+      selector:
+        text:
+    segments:
+      required: true
+      selector:
+        object:
+    rgb:
+      selector:
+        number:
+          min: 0
+          max: 16777215
+          mode: box
+    brightness:
+      selector:
+        number:
+          min: 0
+          max: 100
+          mode: box
+send_capability:
+  name: Send capability
+  description: Validate and send a capability from the device's advertised schema.
+  fields:
+    device_id:
+      required: true
+      selector:
+        text:
+    capability_type:
+      required: true
+      selector:
+        text:
+    instance:
+      required: true
+      selector:
+        text:
+    value:
+      required: true
+      selector:
+        object:
+refresh_scenes:
+  name: Refresh lighting scenes
+  description: Refresh per-device Govee scenes, including the APK private scene catalog when configured.
+  fields:
+    device_id:
+      required: true
+      selector:
+        text:
+refresh_app_catalogs:
+  name: Refresh Android app catalogs
+  description: Update the Govee Home private device groups catalog.
+request_app_status:
+  name: Request private app MQTT device status
+  description: Query Govee AWS IoT topic for the selected device; requires account login and IoT MQTT connectivity.
+  fields:
+    device_id:
+      required: true
+      selector:
+        text:
+app_request:
+  name: Call APK-verified private Govee method
+  description: >-
+    Advanced service. Calls one of 153 APK-verified Retrofit operations using their known HTTP verb and path.
+    Query keys must match the extracted Retrofit method parameters. Writes are disabled by default and require
+    explicitly enabling private_mutations in integration options. Request body format is device-specific and
+    an APK method alone is not proof the backend still accepts the call.
+  fields:
+    operation:
+      required: true
+      selector:
+        text:
+    entry_id:
+      selector:
+        text:
+    query:
+      selector:
+        object:
+    body:
+      selector:
+        object:
