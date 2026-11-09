@@ -28,7 +28,7 @@ from .native_protocol import control_frames
 from .capabilities import add_model_capabilities, native_outlet_value, segment_indices, segment_batch_size
 from .confirmation import CommandConfirmation
 from .reports import extra_report, state_envelope, app_thermometer_report
-from .runtime_store import RuntimeStore, restore_segments, segment_snapshot
+from .runtime_store import RuntimeStore, restore_segments, segment_snapshot, restore_settings, settings_snapshot
 
 _LOGGER = logging.getLogger(__name__)
 MQTT_CONFIRM_TIMEOUT = 8
@@ -130,6 +130,7 @@ class GoveeCoordinator(DataUpdateCoordinator[dict[str, Device]]):
 
     def runtime_snapshot(self):
         return {"segments": {d.device_id: segment_snapshot(d) for d in self.devices.values() if segment_indices(d)},
+                "settings": {d.device_id: settings_snapshot(d) for d in self.devices.values()},
                 "energy": {d.device_id: d.local_settings["energy_counter"] for d in self.devices.values()
                            if "energy_counter" in d.local_settings},
                 "cloud_budget": self.api.budget_snapshot() if self.api else self._runtime_data.get("cloud_budget", {})}
@@ -232,6 +233,7 @@ class GoveeCoordinator(DataUpdateCoordinator[dict[str, Device]]):
         current.local_settings["protocol_profile"] = self.h6199_profile
         add_capabilities(current)
         add_model_capabilities(current)
+        restore_settings(current, self._runtime_data.get("settings", {}).get(current.device_id))
         if current is incoming:
             restore_segments(current, self._runtime_data.get("segments", {}).get(current.device_id))
             energy = self._runtime_data.get("energy", {}).get(current.device_id)
@@ -372,6 +374,7 @@ class GoveeCoordinator(DataUpdateCoordinator[dict[str, Device]]):
                     started = monotonic()
                     payload=await api.state(dev.sku,dev.device_id)
                     dev.update_state(payload, requested_at=started)
+                    self.save_runtime_later()
                     return True
                 except GoveeAuthError as exc:
                     self._disable_invalid_openapi()
@@ -418,15 +421,18 @@ class GoveeCoordinator(DataUpdateCoordinator[dict[str, Device]]):
         self._apply_report(dev, states, "mqtt")
 
     def _apply_report(self, dev: Device, states: dict, source: str) -> None:
+        states = dev.report(states, source)
+        if not states:
+            return
         if source == "mqtt":
             self._mqtt_seen[dev.device_id] = monotonic()
             self._mqtt_retry_after.pop(dev.device_id, None)
-        dev.report(states, source)
         self.confirmed_device_updates += 1
         self.last_confirmed_device_update = self.hass.loop.time()
         # Clear a pending write only when the device actually reports the
         # requested property with the requested value.
         self.confirmation.on_report(dev, states)
+        self.save_runtime_later()
         self.async_set_updated_data(dict(self.devices))
 
     async def async_control(self, device: Device, kind: str, instance: str,
@@ -624,6 +630,7 @@ class GoveeCoordinator(DataUpdateCoordinator[dict[str, Device]]):
                 device.assume(MODE, "backlightMode", 1 if video else 2 if music else 0)
             if kind == SEGMENT and instance == "segmentedColorRgb":
                 device.segment_colors.update({i: value["rgb"] for i in value["segment"]})
+        self.save_runtime_later()
         self.async_set_updated_data(dict(self.devices))
 
     async def _async_ble_control(self, device, kind, instance, value, frames) -> bool:
@@ -693,6 +700,7 @@ class GoveeCoordinator(DataUpdateCoordinator[dict[str, Device]]):
                         device.scene_labels[label]={"type":typ,"instance":instance,"value":value}
             if success:
                 self._scene_loaded_at[device.device_id] = monotonic()
+            restore_settings(device, self._runtime_data.get("settings", {}).get(device.device_id))
         self.async_set_updated_data(dict(self.devices))
 
     async def async_load_private_catalogs(self) -> None:

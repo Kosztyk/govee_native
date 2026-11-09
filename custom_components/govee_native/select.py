@@ -3,8 +3,10 @@
 from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.restore_state import RestoreEntity
 from .const import DOMAIN, SCENE, DIY_COLOR, MODE, MUSIC, WORK_MODE
 from .entity import GoveeEntity, readable
+from .runtime_store import restore_setting
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
@@ -25,11 +27,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     async_add_entities(entities)
 
 
-class GoveeSelect(GoveeEntity, SelectEntity):
+class GoveeSelect(GoveeEntity, RestoreEntity, SelectEntity):
     def __init__(self, coordinator, device, kind, instance):
         super().__init__(coordinator, device, f"select_{kind}_{instance}")
         self.kind, self.instance = kind, instance
         self._attr_name = readable(instance)
+
+    async def async_added_to_hass(self):
+        await super().async_added_to_hass()
+        if self.device.state(self.kind, self.instance) is None:
+            # Migrate existing installations which predate the settings store.
+            previous = await self.async_get_last_state()
+            if previous:
+                match = next((opt for opt in self.device.options(self.kind, self.instance)
+                              if str(opt.get("name")) == previous.state), None)
+                if match and restore_setting(self.device, self.kind, self.instance, match["value"]):
+                    self.coordinator.save_runtime_later()
 
     @property
     def options(self):
@@ -47,7 +60,7 @@ class GoveeSelect(GoveeEntity, SelectEntity):
         await self.async_write(self.kind, self.instance, match["value"])
 
 
-class GoveeSceneSelect(GoveeEntity, SelectEntity):
+class GoveeSceneSelect(GoveeEntity, RestoreEntity, SelectEntity):
     _attr_name = "Scene and DIY"
 
     def __init__(self, coordinator, device):
@@ -55,6 +68,11 @@ class GoveeSceneSelect(GoveeEntity, SelectEntity):
 
     async def async_added_to_hass(self):
         await super().async_added_to_hass()
+        if "selected_scene" not in self.device.local_settings:
+            previous = await self.async_get_last_state()
+            if previous and previous.state in self.options:
+                self.device.local_settings["selected_scene"] = previous.state
+                self.coordinator.save_runtime_later()
         # APK Tap-to-Run selectors are populated before setup. OpenAPI scenes
         # may still need a separate fetch after entity creation.
         if self.coordinator.api:
@@ -66,8 +84,19 @@ class GoveeSceneSelect(GoveeEntity, SelectEntity):
 
     @property
     def current_option(self):
-        # Govee often doesn't expose the active scene in device/state.
-        return None
+        # Govee often cannot report the active scene. Retain the last choice
+        # instead of returning unknown after every successful activation.
+        selected = self.device.local_settings.get("selected_scene")
+        return selected if selected in self.device.scene_labels else None
+
+    @property
+    def assumed_state(self):
+        return self.current_option is not None
+
+    @property
+    def extra_state_attributes(self):
+        return {**super().extra_state_attributes, "selection_source": "last_selected",
+                "state_assumed": self.assumed_state}
 
     async def async_select_option(self, option):
         scene = self.device.scene_labels.get(option)
@@ -77,9 +106,12 @@ class GoveeSceneSelect(GoveeEntity, SelectEntity):
             await self.coordinator.async_activate_one_click(scene["shortcut_id"])
         else:
             await self.async_write(scene["type"], scene["instance"], scene["value"])
+        self.device.local_settings["selected_scene"] = option
+        self.coordinator.save_runtime_later()
+        self.coordinator.async_set_updated_data(dict(self.coordinator.devices))
 
 
-class GoveeWorkModeSelect(GoveeEntity, SelectEntity):
+class GoveeWorkModeSelect(GoveeEntity, RestoreEntity, SelectEntity):
     """Structured workMode selector built from advertised workMode/modeValue fields."""
 
     _attr_name = "Work mode"
@@ -112,6 +144,14 @@ class GoveeWorkModeSelect(GoveeEntity, SelectEntity):
     @property
     def options(self):
         return list(self._choices)
+
+    async def async_added_to_hass(self):
+        await super().async_added_to_hass()
+        if self.device.state(WORK_MODE, "workMode") is None:
+            previous = await self.async_get_last_state()
+            if previous and previous.state in self._choices and restore_setting(
+                    self.device, WORK_MODE, "workMode", self._choices[previous.state]):
+                self.coordinator.save_runtime_later()
 
     @property
     def current_option(self):

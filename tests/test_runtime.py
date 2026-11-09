@@ -13,7 +13,7 @@ from custom_components.govee_native import coordinator as coordinator_module
 from custom_components.govee_native.api import GoveeError, GoveeAuthError
 from custom_components.govee_native.app_mqtt import GoveeAppMqtt
 from custom_components.govee_native.bluetooth import GoveeBluetooth
-from custom_components.govee_native.const import ON_OFF, COLOR, RANGE, MODE, TOGGLE, SEGMENT
+from custom_components.govee_native.const import ON_OFF, COLOR, RANGE, MODE, TOGGLE, SEGMENT, VERSION
 from custom_components.govee_native.diagnostics import async_get_config_entry_diagnostics
 from custom_components.govee_native.entity import GoveeEntity
 from custom_components.govee_native.h6199 import frame
@@ -288,7 +288,7 @@ async def test_diagnostic_catalog_ids_are_hashed(coordinator):
     c.app_catalogs[f"scenes_{d.device_id}"] = {"data": []}
     result = await async_get_config_entry_diagnostics(c.hass, SimpleNamespace(entry_id="entry"))
     assert d.device_id not in json.dumps(result)
-    assert result["version"] == "0.5.0"
+    assert result["version"] == VERSION
 
 
 @pytest.mark.parametrize("uptime", [0.0, 60.0, 1000000.0])

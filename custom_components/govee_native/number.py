@@ -3,9 +3,11 @@
 from homeassistant.components.number import NumberEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.restore_state import RestoreEntity
 
 from .const import DOMAIN, RANGE
 from .entity import GoveeEntity, readable
+from .runtime_store import restore_setting
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
@@ -25,7 +27,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     async_add_entities(entities)
 
 
-class GoveeNumber(GoveeEntity, NumberEntity):
+class GoveeNumber(GoveeEntity, RestoreEntity, NumberEntity):
     def __init__(self, coordinator, device, kind, instance):
         super().__init__(coordinator, device, f"number_{kind}_{instance}")
         self.kind, self.instance = kind, instance
@@ -34,6 +36,21 @@ class GoveeNumber(GoveeEntity, NumberEntity):
         self._attr_native_min_value = bounds["min"]
         self._attr_native_max_value = bounds["max"]
         self._attr_native_step = bounds.get("precision") or 1
+
+    async def async_added_to_hass(self):
+        await super().async_added_to_hass()
+        if self.device.state(self.kind, self.instance) is not None:
+            return
+        previous = await self.async_get_last_state()
+        if previous:
+            try:
+                value = float(previous.state)
+            except ValueError:
+                return
+            if value.is_integer():
+                value = int(value)
+            if restore_setting(self.device, self.kind, self.instance, value):
+                self.coordinator.save_runtime_later()
 
     @property
     def native_value(self):

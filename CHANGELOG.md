@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.1
+
+- Save validated selections, numerical settings and toggles across integration reloads and Home Assistant restarts; retain zero-valued options such as Video Area: Partial.
+- Restore H6199 video/music parameters into the command builder, so changing saturation after a reload preserves the selected video area and style.
+- Ignore empty and invalid setting readbacks while accepting valid device feedback. Restored values remain assumed and do not imply reachability or resend commands.
+- Show the last successfully chosen Scene and DIY action instead of always returning unknown. Use valid Home Assistant restored select/number state when available on upgrade.
+- Add persistence, reload, state serialization, invalid readback and structured work-mode regressions; 178 tests pass.
+
 ## 0.5.0
 
 - Send light commands without waiting for a device report; confirm each property in background tasks. Supersede stale confirmations and queued slider values.

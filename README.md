@@ -7,7 +7,7 @@
 Control Govee devices from Home Assistant using a Govee Home account, the
 Developer API, and supported local connections.
 
-**Version:** 0.5.0 · **Home Assistant:** 2026.11.0 or newer ·
+**Version:** 0.5.1 · **Home Assistant:** 2026.11.0 or newer ·
 **Integration domain:** `govee_native`
 
 This is a community custom integration. It discovers the capabilities available
@@ -33,6 +33,12 @@ You can use those entities in dashboards, scenes, scripts and automations.
 On/off controls keep the same slider in both states. Before any value is known,
 the slider starts visually off and `state_assumed` remains true. A successful
 command submission is distinguished from actual device confirmation.
+
+Selections and numerical settings are saved, including H6199 Video Area,
+Video Style, Video Saturation and music controls. They survive integration
+reloads and Home Assistant restarts. Empty readbacks keep the last value;
+valid device feedback updates it. Restored settings remain marked as assumed.
+The Scene and DIY selector displays the last successfully selected action.
 
 Device and firmware support varies. This integration does not reproduce every
 feature of the Govee Home app. See [feature coverage](docs/FEATURE_MATRIX.md).
@@ -120,11 +126,11 @@ All options, firmware profiles and connection priorities are explained in
 
 ## How it was tested
 
-The 0.5.0 software regression suite passed **158 tests** against real Home
+The 0.5.1 software regression suite passed **178 tests** against real Home
 Assistant **2026.11.0** classes on Python **3.14.9**. Tests cover MQTT routing and
 confirmation, queue coalescing, segment discovery/batching/restoration, encrypted Bluetooth,
 API budget/backoff, model-specific state decoding, LAN freshness, state reconciliation,
-entity setup/unload, options validation and consistent slider states. Runtime
+entity setup/unload, options validation, saved selections and consistent slider states. Runtime
 lint checks and Python compilation also passed.
 
 HTTP, MQTT and Bluetooth device boundaries are simulated in these tests. They

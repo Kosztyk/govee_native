@@ -7,7 +7,7 @@
 - aiomqtt 2.5.1 and the pinned Bluetooth/testing dependencies in
   [`requirements-test.txt`](../requirements-test.txt).
 
-The 0.5.0 suite passed **158 tests**, with zero failures. Five warnings came
+The 0.5.1 suite passed **178 tests**, with zero failures. Five warnings came
 from Home Assistant HTTP/backoff dependencies. The runtime `F` and `E9` lint
 checks and Python compilation passed. The suite was rerun for this repository
 HACS preparation after the manifest metadata and version were updated.
@@ -24,6 +24,7 @@ HACS preparation after the manifest metadata and version were updated.
 | LAN | Device identification, color mode, fresh status and UDP handling. |
 | Entities | Platform construction, stable unique IDs, setup/unload and action cleanup. |
 | Controls | Real HA state serialization through startup, unconfirmed on/off commands and later device feedback for slider controls. |
+| Selection retention | Actual HA Store save/load and coordinator recreation; zero-valued choices, video/music parameters, numerical controls, toggles, structured work modes, scenes, invalid readbacks and HA restore fallback. No commands are resent by restoration. |
 | Options | Existing device settings and explicit entity disables are retained; Bluetooth and segment forms submit correctly. |
 | RGBIC | Generic discovery, model overrides, batch limits, grouping, real brightness writes, invalid-value rejection and restored colours. |
 | Extra models | Outlet bitmasks, independent light-zone masks/status/temperature, energy reset/reboot accounting, dehumidifier/AQI/probe decoding and missing-reading sentinels. |

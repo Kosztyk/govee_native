@@ -1,4 +1,4 @@
-# Response, segments and model support in 0.5.0
+# Response, segments and model support in 0.5.1
 
 ## What changes when you click a control
 
@@ -25,6 +25,25 @@ short window. Three readback failures temporarily suppress LAN writes for five
 minutes; LAN read health is kept separate. Other configured transports can
 then carry the command. Bluetooth connections and encryption sessions are
 reused until a disconnect, failure or integration unload.
+
+## Saved selections and settings
+
+Video Area, Video Style, Video Saturation, music controls and other advertised
+select/number/toggle settings are saved in Home Assistant's integration storage.
+After an integration reload or HA restart, valid saved values populate the
+controls again. In particular, **Partial** is represented by `0` and is retained.
+The H6199 command builder restores its area, style and saturation together,
+so editing one field does not silently reset the others to default values.
+
+Missing, empty or invalid readbacks do not erase the last setting. Valid device
+reports replace it. Restoring a setting marks it assumed; it does not prove the
+device is online, confirm a command or resend anything to the device. The
+combined **Scene and DIY** control shows the last successfully selected action,
+with `selection_source: last_selected`, because Govee often cannot report it.
+
+On upgrade, existing valid HA restore data is used when available. A value
+already lost by an older release must be selected once more. Removed options
+and values outside the current capability schema are not restored.
 
 ## Choose segment controls
 

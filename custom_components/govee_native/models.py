@@ -7,6 +7,10 @@ from typing import Any
 from time import monotonic
 import math
 
+from .const import DIY_COLOR, MODE, MUSIC, RANGE, SCENE, TOGGLE, WORK_MODE
+
+SETTING_KINDS = frozenset((MODE, MUSIC, SCENE, DIY_COLOR, WORK_MODE, RANGE, TOGGLE))
+
 
 class InvalidCapabilityValue(ValueError):
     """The requested command does not match the device's advertised schema."""
@@ -123,6 +127,27 @@ class Device:
     def state(self, kind: str, instance: str) -> Any:
         return self.states.get((kind, instance))
 
+    def valid_setting(self, kind: str, instance: str, value: Any) -> bool:
+        """Only retain writable settings that still match discovery metadata."""
+        if kind not in SETTING_KINDS:
+            return False
+        try:
+            self.validate(kind, instance, value)
+        except (InvalidCapabilityValue, TypeError, AttributeError):
+            return False
+        return True
+
+    def accepts_report(self, kind: str, instance: str, value: Any) -> bool:
+        # Some write-only controls report empty/unknown/unsupported sentinels.
+        return value is not None and value != "" and (
+            kind not in SETTING_KINDS or self.valid_setting(kind, instance, value))
+
+    def _remember_native_setting(self, kind: str, instance: str, value: Any) -> None:
+        # H6199 sends area/style/saturation (or mode/sensitivity) together.
+        # Its next command must also use settings restored or read from a device.
+        if self.sku == "H6199" and kind in SETTING_KINDS:
+            self.local_settings[instance] = value
+
     def update_state(self, payload: dict, *, requested_at: float = 0.0) -> None:
         for item in payload.get("capabilities", []):
             key = (item.get("type"), item.get("instance"))
@@ -141,15 +166,19 @@ class Device:
                     # than the command. Real push reports bypass this grace.
                     continue
                 # Govee uses '' for values that cannot be queried.
-                if value is not None and value != "":
+                if self.accepts_report(*key, value):
                     self.states[key] = value
                     self.assumed_keys.discard(key)
+                    self._remember_native_setting(*key, value)
                 # An empty cloud readback means "not retrievable"; retain a
                 # valid MQTT/LAN/BLE value instead of changing it to unknown.
         self.last_error = None
 
-    def report(self, states: dict, transport: str) -> None:
+    def report(self, states: dict, transport: str) -> dict:
         """Apply device feedback; a sent command must never call this method."""
+        states = {key: value for key, value in states.items() if self.accepts_report(*key, value)}
+        if not states:
+            return {}
         now = monotonic()
         self.states.update(states)
         self.state_times.update({key: now for key in states})
@@ -158,12 +187,16 @@ class Device:
         self.last_transport = transport
         self.online = True
         self.last_error = None
+        for key, value in states.items():
+            self._remember_native_setting(*key, value)
+        return states
 
     def assume(self, kind: str, instance: str, value: Any) -> None:
         """Keep explicitly labelled command-derived state for write-only BLE."""
         self.states[(kind, instance)] = value
         self.assumed_keys.add((kind, instance))
         self.state_times[(kind, instance)] = monotonic()
+        self._remember_native_setting(kind, instance, value)
 
     def validate(self, kind: str, instance: str, value: Any) -> None:
         cap = self.capability(kind, instance)
