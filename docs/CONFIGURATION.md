@@ -13,6 +13,12 @@ API key is required. Email verification is shown when Govee challenges a new
 login. Account/session data is stored in Home Assistant's integration entry;
 keep Home Assistant backups private.
 
+Developer API keys must be entered directly in Govee Native's own setup form.
+Version 0.5.2 removes the option that reused credentials from another integration;
+its old saved flag is discarded on setup or when saving options. Account and
+local controls can continue without a Developer API key, but Developer API
+features require a key configured directly in Govee Native.
+
 ## Integration options
 
 Open **Settings → Devices & services → Govee Native → Configure**.
@@ -26,7 +32,6 @@ Open **Settings → Devices & services → Govee Native → Configure**.
 | Local LAN control | Off | Discovers and uses devices that actually respond to Govee's supported LAN protocol. |
 | Official Developer API events | Off | Enables advertised API event capabilities when an API key is available. |
 | Advanced private-app write methods | Off | Allows the advanced `app_request` action to call supported write routes. It does not enable a full app feature editor. |
-| Existing legacy Developer API key | Off | Explicitly reuses a key already stored by a legacy `govee` entry when Native has no key of its own. |
 | Direct Bluetooth control | Off | Supports H6199 and the known H1270 protocol through Home Assistant Bluetooth. Connections are reused. |
 | Prefer Bluetooth | Off | Tries Bluetooth before LAN and account MQTT for commands with supported Bluetooth frames. |
 | H6199 firmware protocol profile | Original / `classic` | Chooses original or updated native command formats. |

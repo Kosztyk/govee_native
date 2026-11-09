@@ -15,7 +15,7 @@ from .const import (
     CONF_API_KEY,CONF_EMAIL,CONF_PASSWORD,CONF_APP_TOKEN,CONF_APP_ACCOUNT_ID,
     CONF_APP_ACCOUNT_TOPIC,CONF_POLL_SECONDS,CONF_MQTT,CONF_LAN,
     CONF_APP_MQTT,CONF_APP_CATALOGS,CONF_PRIVATE_MUTATIONS,
-    DEFAULT_POLL_SECONDS,DOMAIN,PLATFORMS,SEGMENT,CONF_USE_LEGACY_API,
+    DEFAULT_POLL_SECONDS,DOMAIN,PLATFORMS,SEGMENT,
     CONF_BLUETOOTH,CONF_PREFER_BLUETOOTH,CONF_BLUETOOTH_ADDRESSES,
     CONF_H6199_PROFILE,
 )
@@ -35,17 +35,14 @@ def _entry_coordinator(hass: HomeAssistant, device_id: str):
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    # Remove the retired flag from this integration's own stored options.
+    # Never inspect another integration's entries or credentials.
+    if "use_legacy_api_key" in entry.options:
+        options = dict(entry.options)
+        options.pop("use_legacy_api_key")
+        hass.config_entries.async_update_entry(entry, options=options)
     http=async_get_clientsession(hass)
     key=entry.data.get(CONF_API_KEY) or None
-    if not key and entry.options.get(CONF_USE_LEGACY_API,False):
-        # Explicit opt-in: reuse the user's already configured Developer API
-        # key without duplicating it in this entry or exposing it in logs.
-        for legacy in hass.config_entries.async_entries("govee"):
-            key=legacy.options.get(CONF_API_KEY) or legacy.data.get(CONF_API_KEY) or None
-            if key:
-                break
-        if not key:
-            _LOGGER.warning("Govee legacy-key fallback enabled but no existing Govee API key is configured")
     api=GoveeAPI(http,key) if key else None
     email=entry.data.get(CONF_EMAIL) or None
     app=GoveeAppAPI(http,email,entry.data.get(CONF_APP_TOKEN,"")) if email else None

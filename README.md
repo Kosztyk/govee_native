@@ -7,7 +7,7 @@
 Control Govee devices from Home Assistant using a Govee Home account, the
 Developer API, and supported local connections.
 
-**Version:** 0.5.1 · **Home Assistant:** 2026.11.0 or newer ·
+**Version:** 0.5.2 · **Home Assistant:** 2026.11.0 or newer ·
 **Integration domain:** `govee_native`
 
 This is a community custom integration. It discovers the capabilities available
@@ -126,11 +126,12 @@ All options, firmware profiles and connection priorities are explained in
 
 ## How it was tested
 
-The 0.5.1 software regression suite passed **178 tests** against real Home
+The 0.5.2 software regression suite passed **184 tests** against real Home
 Assistant **2026.11.0** classes on Python **3.14.9**. Tests cover MQTT routing and
 confirmation, queue coalescing, segment discovery/batching/restoration, encrypted Bluetooth,
 API budget/backoff, model-specific state decoding, LAN freshness, state reconciliation,
-entity setup/unload, options validation, saved selections and consistent slider states. Runtime
+entity setup/unload, options validation, saved selections, credential isolation,
+cached MQTT TLS, reauthentication errors and consistent slider states. Runtime
 lint checks and Python compilation also passed.
 
 HTTP, MQTT and Bluetooth device boundaries are simulated in these tests. They

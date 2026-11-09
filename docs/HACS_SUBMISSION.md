@@ -44,7 +44,20 @@ The local Python suite supplements these checks; it does not replace them.
    alphabetical order.
 5. Open the PR from the owner's account and complete the current upstream
    template with the release and passing-run links. Do not request individual
-   reviewer assignments.
+   reviewer assignments unless a reviewer explicitly asks you to re-request review.
+
+## Review corrections in 0.5.2
+
+- Removed credential lookup from the separate `govee` integration, including
+  its option, translations and configuration documentation. Existing Native
+  entries discard the retired flag and retain their other options.
+- Official MQTT events use Home Assistant's cached `client_context()` with
+  `tls_set_context()`, retaining certificate and hostname verification.
+- Reauthentication catches verification-email API failures and shows the
+  translated `cannot_send_code` error with a working retry path.
+
+The six review-specific regressions are in `tests/test_hacs_review.py`.
+The 0.5.2 suite contains 184 passing tests, including the 0.5.1 selection fixes.
 
 Passing automation establishes repository/metadata readiness. It does not
 guarantee catalog acceptance or physical compatibility for every Govee model.

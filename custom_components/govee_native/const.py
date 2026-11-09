@@ -4,7 +4,7 @@ from datetime import timedelta
 
 DOMAIN = "govee_native"
 NAME = "Govee Native"
-VERSION = "0.5.1"
+VERSION = "0.5.2"
 API_BASE = "https://openapi.api.govee.com/router/api/v1"
 CONF_API_KEY = "api_key"
 CONF_POLL_SECONDS = "poll_seconds"
@@ -44,8 +44,6 @@ CONF_APP_MQTT = "app_mqtt"
 CONF_APP_CATALOGS = "app_catalogs"
 CONF_PRIVATE_MUTATIONS = "private_mutations"
 
-# Explicit opt-in: consume a key already configured in the legacy integration.
-CONF_USE_LEGACY_API = "use_legacy_api_key"
 CONF_BLUETOOTH = "bluetooth_control"
 CONF_PREFER_BLUETOOTH = "prefer_bluetooth"
 CONF_BLUETOOTH_ADDRESSES = "bluetooth_addresses"

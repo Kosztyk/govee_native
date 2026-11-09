@@ -8,6 +8,7 @@ from typing import Any
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.util.ssl import client_context
 import paho.mqtt.client as mqtt
 
 from .const import DOMAIN, EVENT
@@ -27,7 +28,7 @@ class GoveeEvents:
             client_id="govee-native-" + __import__("uuid").uuid4().hex[:12],
         )
         self._client.username_pw_set(api_key, api_key)
-        self._client.tls_set()
+        self._client.tls_set_context(client_context())
         self._client.on_connect = self._on_connect
         self._client.on_message = self._on_message
         self._client.on_disconnect = self._on_disconnect

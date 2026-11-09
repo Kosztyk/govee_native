@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.2
+
+- Remove the option to read another integration's Developer API credentials. Only a key entered directly in Govee Native is used; the retired flag is removed from Native's saved options, forms and translations.
+- Reuse Home Assistant's cached, certificate-verifying SSL context for official MQTT events instead of loading CA files on the event loop.
+- Catch verification-email request errors during reauthentication and show `cannot_send_code`; the user can retry without an unknown-error crash.
+- Add six regression cases for the review fixes. All 184 tests, runtime lint and compilation pass. Retain the selection-restoration fixes from 0.5.1.
+
 ## 0.5.1
 
 - Save validated selections, numerical settings and toggles across integration reloads and Home Assistant restarts; retain zero-valued options such as Video Area: Partial.

@@ -13,7 +13,7 @@ from .const import (
     CONF_API_KEY, CONF_EMAIL, CONF_PASSWORD, CONF_APP_TOKEN,
     CONF_APP_ACCOUNT_ID, CONF_APP_ACCOUNT_TOPIC, CONF_APP_MQTT,
     CONF_POLL_SECONDS, CONF_MQTT, CONF_LAN, CONF_APP_CATALOGS,
-    CONF_PRIVATE_MUTATIONS, CONF_USE_LEGACY_API, DEFAULT_POLL_SECONDS, MIN_POLL_SECONDS, MAX_POLL_SECONDS, DOMAIN,
+    CONF_PRIVATE_MUTATIONS, DEFAULT_POLL_SECONDS, MIN_POLL_SECONDS, MAX_POLL_SECONDS, DOMAIN,
     CONF_BLUETOOTH, CONF_PREFER_BLUETOOTH, CONF_BLUETOOTH_ADDRESSES,
     CONF_H6199_PROFILE,
 )
@@ -115,7 +115,11 @@ class GoveeNativeFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 self._account=GoveeAppAPI(async_get_clientsession(self.hass),email)
                 try:session=await self._account.login(self._pending[CONF_PASSWORD])
                 except AppVerificationRequired:
-                    await self._account.request_email_code()
+                    try:
+                        await self._account.request_email_code()
+                    except AppAPIError:
+                        return self.async_show_form(step_id="reauth_confirm", data_schema=self._reauth_schema(),
+                                                    errors={"base": "cannot_send_code"})
                     return await self.async_step_reauth_verify()
                 except AppAPIError:
                     return self.async_show_form(step_id="reauth_confirm",data_schema=self._reauth_schema(),errors={"base":"invalid_auth"})
@@ -148,6 +152,7 @@ class GoveeNativeOptionsFlow(config_entries.OptionsFlow):
             configure = user_input.pop("configure_bluetooth", False)
             self._configure_segments = user_input.pop("configure_segments", False)
             self._pending_options = {**self.config_entry.options, **user_input}
+            self._pending_options.pop("use_legacy_api_key", None)
             if configure:
                 return await self.async_step_bluetooth()
             return await self._finish_options()
@@ -162,7 +167,6 @@ class GoveeNativeOptionsFlow(config_entries.OptionsFlow):
             vol.Required(CONF_LAN,default=opts.get(CONF_LAN,False)):bool,
             vol.Required(CONF_MQTT,default=opts.get(CONF_MQTT,False)):bool,
             vol.Required(CONF_PRIVATE_MUTATIONS,default=opts.get(CONF_PRIVATE_MUTATIONS,False)):bool,
-            vol.Required(CONF_USE_LEGACY_API,default=opts.get(CONF_USE_LEGACY_API,False)):bool,
             vol.Required(CONF_BLUETOOTH, default=opts.get(CONF_BLUETOOTH,False)):bool,
             vol.Required(CONF_PREFER_BLUETOOTH, default=opts.get(CONF_PREFER_BLUETOOTH,False)):bool,
             vol.Required(CONF_H6199_PROFILE, default=opts.get(CONF_H6199_PROFILE,"classic")):selector.SelectSelector(
