@@ -124,6 +124,8 @@ async def test_reconnect_requires_fresh_device_evidence(coordinator):
 
 
 async def test_push_does_not_rearm_an_existing_poll(coordinator):
+    from homeassistant.core import is_callback
+    assert is_callback(coordinator.async_set_updated_data)
     c = coordinator;d = next(iter(c.devices.values()))
     c._listeners["test"] = (lambda: None, None)
     c._unsub_refresh = lambda: None

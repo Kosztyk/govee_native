@@ -11,7 +11,7 @@ from time import monotonic
 from datetime import timedelta
 from typing import Any
 
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -91,6 +91,7 @@ class GoveeCoordinator(DataUpdateCoordinator[dict[str, Device]]):
         self._queued_writes: dict[tuple, int] = {}
         self.superseded_commands = 0
 
+    @callback
     def async_set_updated_data(self, data):
         """Publish a push without postponing polls of unrelated cloud devices."""
         self.data = data

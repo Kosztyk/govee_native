@@ -1,7 +1,7 @@
 """Capability sensors plus private Govee app device readings and catalogs."""
 from homeassistant.components.sensor import SensorEntity, SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.const import PERCENTAGE
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -108,6 +108,7 @@ class GoveeEnergySensor(GoveeEntity, SensorEntity):
         self.device.local_settings["energy_counter"] = self.counter.as_dict()
         self.coordinator.save_runtime_later()
 
+    @callback
     def _handle_coordinator_update(self):
         self._update_counter()
         super()._handle_coordinator_update()
