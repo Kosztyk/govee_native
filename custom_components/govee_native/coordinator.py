@@ -97,7 +97,8 @@ class GoveeCoordinator(DataUpdateCoordinator[dict[str, Device]]):
             return
         for dev in self.devices.values():
             topic = dev.app_data.get("topic")
-            if not topic or (not force and monotonic() - self._last_status_query.get(dev.device_id, 0) < 30):
+            last_query = self._last_status_query.get(dev.device_id)
+            if not topic or (not force and last_query is not None and monotonic() - last_query < 30):
                 continue
             try:
                 await self.mqtt.publish(topic, "status", query=True, cmd_version=2)

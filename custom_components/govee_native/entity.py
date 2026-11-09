@@ -48,6 +48,7 @@ class GoveeEntity(CoordinatorEntity[GoveeCoordinator]):
             if self.coordinator.lan and self.coordinator.lan.available(self.device):
                 return True
             if (self.coordinator.mqtt and self.coordinator.mqtt.connected and
+                    self.device.last_transport is not None and
                     monotonic() - self.device.last_report_at < 180):
                 return True
             if self.coordinator.api is None:

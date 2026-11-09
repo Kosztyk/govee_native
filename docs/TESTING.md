@@ -7,7 +7,7 @@
 - aiomqtt 2.5.1 and the pinned Bluetooth/testing dependencies in
   [`requirements-test.txt`](../requirements-test.txt).
 
-The 0.4.2 suite passed **90 tests**, with zero failures. Five warnings came
+The 0.4.2 suite passed **98 tests**, with zero failures. Five warnings came
 from Home Assistant HTTP/backoff dependencies. The runtime `F` and `E9` lint
 checks and Python compilation passed. The suite was rerun for this repository
 HACS preparation after the manifest metadata and version were updated.
@@ -19,7 +19,7 @@ HACS preparation after the manifest metadata and version were updated.
 | Account/API parsing | Device normalization, authentication errors, capability validation and scene/shortcut parsing. |
 | MQTT | Account reply routing, command/query envelopes, genuine status decoding, echo rejection, pacing and concurrent write ordering. |
 | Confirmation | Fast feedback races, timeout/fallback/cooldown and no false confirmation from a broker acknowledgment. |
-| State | Fresh push data survives stale/empty cloud reads; real device reports reconcile assumptions. |
+| State | Missing report timestamps never imply a fresh connection, even at zero uptime; the first MQTT status query is never throttled. Fresh push data survives stale/empty cloud reads; real device reports reconcile assumptions. |
 | Bluetooth | H6199 original/updated frames, segment masks, address validation, stale discovery and disconnect cleanup. |
 | LAN | Device identification, color mode, fresh status and UDP handling. |
 | Entities | Platform construction, stable unique IDs, setup/unload and action cleanup. |

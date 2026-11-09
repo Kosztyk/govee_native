@@ -115,7 +115,9 @@ async def test_region_write_updates_only_requested_regions(coordinator):
     assert d.segment_colors == {0: 0xFF0000, 5: 0x112233, 14: 0xFF0000}
 
 
-async def test_periodic_status_queries_are_throttled(coordinator):
+@pytest.mark.parametrize("uptime", [0.0, 20.0, 1000000.0])
+async def test_periodic_status_queries_are_throttled(coordinator, monkeypatch, uptime):
+    monkeypatch.setattr(coordinator_module, "monotonic", lambda: uptime)
     c = coordinator;c.mqtt = FakeMqtt(c)
     await c.async_query_status();await c.async_query_status()
     assert len(c.mqtt.calls) == 1
@@ -250,15 +252,23 @@ async def test_segment_slider_retains_write_only_diagnostics(coordinator):
     assert c.confirmed_commands == 0
 
 
-async def test_connection_sensor_does_not_equate_broker_to_device(coordinator):
+@pytest.mark.parametrize("uptime", [0.0, 60.0, 1000000.0])
+async def test_connection_sensor_does_not_equate_broker_to_device(coordinator, monkeypatch, uptime):
+    monkeypatch.setattr("custom_components.govee_native.sensor.monotonic", lambda: uptime)
+    monkeypatch.setattr("custom_components.govee_native.models.monotonic", lambda: uptime)
     c = coordinator;d = next(iter(c.devices.values()));c.mqtt = FakeMqtt(c)
     sensor = GoveeAppConnectionSensor(c, d)
     assert sensor.native_value == "waiting_for_device"
+    assert sensor.extra_state_attributes["last_device_report_age"] is None
     c.mqtt_update({"device": d.device_id, "state": {"onOff": 1}})
     assert sensor.native_value == "mqtt"
+    assert sensor.extra_state_attributes["last_device_report_age"] == 0
 
 
-async def test_stale_broker_device_is_not_available(coordinator):
+@pytest.mark.parametrize("uptime", [0.0, 60.0, 1000000.0])
+async def test_stale_broker_device_is_not_available(coordinator, monkeypatch, uptime):
+    monkeypatch.setattr("custom_components.govee_native.entity.monotonic", lambda: uptime)
+    monkeypatch.setattr("custom_components.govee_native.models.monotonic", lambda: uptime)
     c = coordinator;d = next(iter(c.devices.values()));c.mqtt = FakeMqtt(c)
     assert not GoveeEntity(c, d, "test").available
     c.mqtt_update({"device": d.device_id, "state": {"onOff": 1}})
@@ -274,7 +284,10 @@ async def test_diagnostic_catalog_ids_are_hashed(coordinator):
     assert result["version"] == "0.4.2"
 
 
-def test_lan_status_updates_temperature_mode_and_freshness():
+@pytest.mark.parametrize("uptime", [0.0, 60.0, 1000000.0])
+def test_lan_status_updates_temperature_mode_and_freshness(monkeypatch, uptime):
+    monkeypatch.setattr("custom_components.govee_native.lan.monotonic", lambda: uptime)
+    monkeypatch.setattr("custom_components.govee_native.models.monotonic", lambda: uptime)
     d = make_device();lan = GoveeLan({d.device_id: d}, lambda: None)
     lan.transport = SimpleNamespace(sendto=lambda *args: None)
     lan._packet(json.dumps({"msg": {"cmd": "scan", "data": {"ip": "192.168.1.10", "device": d.device_id, "sku": "H6199"}}}).encode(), ("192.168.1.10", 4001))

@@ -87,6 +87,7 @@ class GoveeAppConnectionSensor(GoveeEntity,SensorEntity):
         if self.coordinator.prefer_bluetooth and self.coordinator.ble and self.coordinator.ble.available(self.device):
             return "bluetooth"
         if (self.coordinator.mqtt and self.coordinator.mqtt.connected and self.device.app_data.get("topic")
+                and self.device.last_transport is not None
                 and monotonic() - self.device.last_report_at < 180):
             return "mqtt"
         if self.coordinator.ble and self.coordinator.ble.available(self.device):
@@ -118,7 +119,7 @@ class GoveeAppConnectionSensor(GoveeEntity,SensorEntity):
             "last_command_transport": self.device.last_command_transport,
             "last_command_result": self.device.last_command_result,
             "state_assumed": bool(self.device.assumed_keys),
-            "last_device_report_age": round(monotonic() - self.device.last_report_at, 1) if self.device.last_report_at else None,
+            "last_device_report_age": round(monotonic() - self.device.last_report_at, 1) if self.device.last_transport is not None else None,
             "bluetooth_enabled": self.coordinator.ble is not None,
             "bluetooth_address_known": bool(self.coordinator.ble and self.coordinator.ble.address(self.device)),
             "bluetooth_available": bool(self.coordinator.ble and self.coordinator.ble.available(self.device)),

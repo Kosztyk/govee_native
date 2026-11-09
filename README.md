@@ -109,7 +109,7 @@ All options, firmware profiles and connection priorities are explained in
 
 ## How it was tested
 
-The 0.4.2 software regression suite passed **90 tests** against real Home
+The 0.4.2 software regression suite passed **98 tests** against real Home
 Assistant **2026.11.0** classes on Python **3.14.9**. Tests cover MQTT routing and
 confirmation, Bluetooth packet handling, LAN freshness, state reconciliation,
 entity setup/unload, options validation and consistent slider states. Runtime

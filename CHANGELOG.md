@@ -2,6 +2,9 @@
 
 ## 0.4.2
 
+- Require a real MQTT/LAN device report before declaring the connection fresh,
+  including immediately after host startup; always send the first status query.
+- Add deterministic freshness tests for new and long-running hosts.
 - Add HACS, hassfest and regression-test GitHub Actions without ignored checks.
 - Add the Govee brand icon inside the integration folder.
 - Add Marketplace categories and normalize manifest ordering.

@@ -100,7 +100,8 @@ class GoveeLan:
             self.scan()
 
     def available(self, device: Device) -> bool:
-        return bool(self.transport and monotonic() - self.last_seen.get(normalize_id(device.device_id), 0) < 180)
+        last_seen = self.last_seen.get(normalize_id(device.device_id))
+        return bool(self.transport and last_seen is not None and monotonic() - last_seen < 180)
 
     def query_status(self) -> None:
         if not self.transport:return
