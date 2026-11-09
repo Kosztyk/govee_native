@@ -81,12 +81,14 @@ def _ssl_context_sync(credentials: dict) -> ssl.SSLContext:
 class GoveeAppMqtt:
     def __init__(self, credentials: dict, account_topic: str, account_id: str,
                  client_id: str, callback: Callable[[dict], None],
-                 connection_callback: Callable[[bool], None] | None = None):
+                 connection_callback: Callable[[bool], None] | None = None,
+                 refresh_credentials=None):
         self.credentials = credentials
         self.account_topic = account_topic
         self.identifier = f"AP/{account_id}/a_{client_id}" if account_id else f"a_{client_id}"
         self.callback = callback
         self.connection_callback = connection_callback
+        self.refresh_credentials = refresh_credentials
         self._task: asyncio.Task | None = None
         self._client: Any = None
         self._stopping = False
@@ -100,6 +102,9 @@ class GoveeAppMqtt:
         self._publish_lock = asyncio.Lock()
         self._last_publish = 0.0
         self.last_error: str | None = None
+        self.status_queries = 0
+        self.silent = False
+        self._silent_reconnect_attempted = False
 
     async def start(self) -> None:
         if not self.account_topic:
@@ -121,6 +126,7 @@ class GoveeAppMqtt:
     async def _run(self) -> None:
         import aiomqtt
         delay = 5
+        failures = 0
         endpoint = self.credentials.get("endpoint", "aqm3wd1qlc3dy-ats.iot.us-east-1.amazonaws.com")
         while not self._stopping:
             try:
@@ -134,16 +140,33 @@ class GoveeAppMqtt:
                     self._client = client
                     self.connected = True
                     self.last_error = None
+                    failures = 0
                     if self.connection_callback:
                         self.connection_callback(True)
                     delay = 5
-                    async for message in client.messages:
+                    baseline_messages = self.messages_received
+                    baseline_queries = self.status_queries
+                    messages = client.messages.__aiter__()
+                    while not self._stopping:
+                        try:
+                            message = await asyncio.wait_for(anext(messages), timeout=90)
+                        except TimeoutError:
+                            if self.messages_received == baseline_messages and self.status_queries - baseline_queries >= 3:
+                                self.silent = True
+                                self.last_error = "mqtt_connected_without_device_reports"
+                                if not self._silent_reconnect_attempted:
+                                    self._silent_reconnect_attempted = True
+                                    raise ConnectionError("Silent Govee MQTT session") from None
+                            continue
                         try:
                             # Some older Govee firmware embeds Latin-1 scene names in JSON.
                             value = json.loads(bytes(message.payload).decode("utf-8", errors="replace"))
                             if isinstance(value, dict):
                                 value["_govee_topic"] = str(message.topic)
                                 self.messages_received += 1
+                                self.silent = False
+                                self.last_error = None
+                                self._silent_reconnect_attempted = False
                                 self.last_message_at = time.time()
                                 try:
                                     self.callback(value)
@@ -154,6 +177,7 @@ class GoveeAppMqtt:
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
+                failures += 1
                 self.last_error = type(exc).__name__
                 _LOGGER.warning("Govee account IoT unavailable: %s", type(exc).__name__)
             finally:
@@ -162,6 +186,17 @@ class GoveeAppMqtt:
                 if self.connection_callback:
                     self.connection_callback(False)
             if not self._stopping:
+                if failures >= 3 and self.refresh_credentials:
+                    try:
+                        credentials = await self.refresh_credentials()
+                        context = await asyncio.to_thread(_ssl_context_sync, credentials)
+                    except Exception:
+                        _LOGGER.debug("Could not refresh Govee IoT credentials")
+                    else:
+                        self.credentials = credentials
+                        self._context = context
+                        endpoint = credentials.get("endpoint", endpoint)
+                    failures = 0
                 await asyncio.sleep(delay)
                 delay = min(delay * 2, 300)
 
@@ -188,14 +223,16 @@ class GoveeAppMqtt:
         self.last_command_name = "app_one_click"
 
     async def publish(self, topic: str, cmd: str, data: dict | None = None,
-                      *, cmd_version: int = 0, query: bool = False) -> None:
+                      *, cmd_version: int = 0, query: bool = False, read_only: bool = False) -> None:
         if not self.connected or not self._client:
             raise ConnectionError("Govee account MQTT is disconnected")
         if not isinstance(topic, str) or not topic or len(topic) > 512 or any(c in topic for c in ("#", "+", "\\")):
             raise ValueError("No valid device MQTT topic")
         payload = mqtt_packet(cmd, data, cmd_version=cmd_version, query=query, account_topic=self.account_topic)
         await self._publish(topic, payload, qos=0 if query else 1)
-        if not query:
+        if query or read_only:
+            self.status_queries += 1
+        if not query and not read_only:
             self.commands_published += 1
             self.last_command_at = time.time()
             self.last_command_name = cmd

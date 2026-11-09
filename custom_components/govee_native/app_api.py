@@ -245,6 +245,7 @@ def normalize_app_device(raw: dict) -> dict:
         "name": str(raw.get("deviceName") or raw.get("name") or sku),
         "topic": str(settings.get("topic") or raw.get("topic") or ""),
         "battery": raw.get("battery") if raw.get("battery") is not None else last.get("battery"),
+        "fahrenheit": settings.get("fahOpen") if type(settings.get("fahOpen")) is bool else None,
         "last": last,
         "ble_address": str(settings.get("bleAddress") or raw.get("bleAddress") or ""),
         "ble_name": str(settings.get("bleName") or raw.get("bleName") or ""),

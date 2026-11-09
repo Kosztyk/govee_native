@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from typing import Any
-from time import monotonic
 
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -47,9 +46,7 @@ class GoveeEntity(CoordinatorEntity[GoveeCoordinator]):
                 return True
             if self.coordinator.lan and self.coordinator.lan.available(self.device):
                 return True
-            if (self.coordinator.mqtt and self.coordinator.mqtt.connected and
-                    self.device.last_transport is not None and
-                    monotonic() - self.device.last_report_at < 180):
+            if self.coordinator.mqtt_healthy(self.device):
                 return True
             if self.coordinator.api is None:
                 return False

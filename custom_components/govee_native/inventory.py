@@ -6,6 +6,7 @@ that a device is currently reachable; live Bluetooth/LAN checks still apply.
 from homeassistant.helpers.storage import Store
 from .models import Device
 from .h6199 import add_capabilities
+from .capabilities import add_model_capabilities
 
 PRIVATE_FIELDS = ("device", "sku", "name", "topic", "ble_address", "ble_name", "firmware", "hardware", "goods_type", "source")
 
@@ -26,6 +27,7 @@ class InventoryCache:
                 d.cloud_capabilities = {tuple(key) for key in item.get("cloud_capabilities", [])
                     if isinstance(key, list) and len(key) == 2 and all(isinstance(k, str) for k in key)}
                 add_capabilities(d)
+                add_model_capabilities(d)
                 result[d.device_id] = d
             except (TypeError, ValueError, KeyError, AttributeError):
                 continue

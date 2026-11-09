@@ -1,6 +1,6 @@
 set_segments:
   name: Set RGBIC segments
-  description: Set zero-based RGBIC regions using H6199 Bluetooth/MQTT passthrough, or advertised OpenAPI capabilities. H6199 color regions are 0 through 14; independent region brightness requires a supported OpenAPI capability.
+  description: Set zero-based RGBIC regions using H6199 Bluetooth/MQTT passthrough, or advertised OpenAPI capabilities. H6199 color regions are 0 through 14; independent region brightness requires an advertised capability or the known H1232/H1252 native protocol. Group requests are split at the advertised batch limit.
   fields:
     device_id:
       required: true

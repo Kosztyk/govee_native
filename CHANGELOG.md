@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.5.0
+
+- Send light commands without waiting for a device report; confirm each property in background tasks. Supersede stale confirmations and queued slider values.
+- Require actual device responses before selecting MQTT control. Add a bounded silent-session reconnect, status-query quarantine, credential refresh and transport diagnostics.
+- Shorten LAN readback and temporarily skip repeatedly failing writes while keeping LAN read health independent.
+- Discover RGBIC segments from capability metadata; keep per-command batch limits separate from physical indices. Add individual/grouped/both/hidden modes and persist colours and supported independent brightness.
+- Reuse direct Bluetooth connections; support the known H1270 encrypted protocol alongside H6199 profiles.
+- Add H1232/H1252 ceiling-light zone paths, H1270 main-panel/ring preservation, H5160/H5161 individual outlets, H5086 energy/power, H7152 ambient/pump data, H5106 air quality and supported thermometer/probe readings.
+- Persist energy reset/reboot tracking; reserve a daily Developer API read budget and honor rate-limit backoff.
+- Keep private app polling independent and prevent push traffic from postponing cloud polls. Cache concurrent scene requests.
+- Preserve domain, existing entity IDs, account options and consistent toggles. Include upstream MIT attribution.
+- Validate with 158 simulated-network regression tests; no new physical-device compatibility claim.
+
 ## 0.4.2
 
 - Require a real MQTT/LAN device report before declaring the connection fresh,

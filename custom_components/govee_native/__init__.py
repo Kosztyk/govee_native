@@ -62,6 +62,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 CONF_APP_ACCOUNT_TOPIC:login.account_topic})
     coordinator=GoveeCoordinator(hass,api,entry.options.get(CONF_POLL_SECONDS,DEFAULT_POLL_SECONDS),app,entry)
     coordinator.h6199_profile = entry.options.get(CONF_H6199_PROFILE, "classic")
+    if coordinator.api:
+        coordinator.api.daily_budget = entry.options.get("daily_request_budget", 9000)
+    await coordinator.async_restore_runtime()
     if entry.options.get(CONF_BLUETOOTH, False):
         coordinator.ble = GoveeBluetooth(hass, entry.options.get(CONF_BLUETOOTH_ADDRESSES, {}))
         coordinator.prefer_bluetooth = entry.options.get(CONF_PREFER_BLUETOOTH, False)
@@ -82,13 +85,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             iot=await app.mqtt_credentials()
             mqtt=GoveeAppMqtt(iot,entry.data.get(CONF_APP_ACCOUNT_TOPIC,""),
                               entry.data.get(CONF_APP_ACCOUNT_ID,""),app.client_id,
-                              coordinator.mqtt_update,coordinator.mqtt_connection_changed)
+                              coordinator.mqtt_update,coordinator.mqtt_connection_changed,
+                              refresh_credentials=app.mqtt_credentials)
             await mqtt.start()
             coordinator.mqtt=mqtt
         except (AppAPIError,ValueError,ImportError) as exc:
             _LOGGER.warning("Govee private AWS IoT unavailable, remaining platforms work: %s",type(exc).__name__)
     if entry.options.get(CONF_LAN,False):
-        lan=GoveeLan(coordinator.devices,lambda:coordinator.async_set_updated_data(dict(coordinator.devices)))
+        lan=GoveeLan(coordinator.devices,lambda:coordinator.async_set_updated_data(dict(coordinator.devices)), coordinator._apply_report)
         coordinator.lan = lan
         try:
             await lan.async_start()
@@ -98,7 +102,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # Collect shortcuts BEFORE scene/select/light entities are constructed.
         # A catalog failure is non-fatal; light controls must still load.
         await coordinator.async_load_private_catalogs()
+    _update_segment_registry(hass, entry, coordinator)
     await hass.config_entries.async_forward_entry_setups(entry,PLATFORMS)
+    await coordinator.async_start()
     entry.async_on_unload(entry.add_update_listener(_async_options_updated))
     if coordinator.api and entry.options.get(CONF_MQTT,False) and any(
         kind=="devices.capabilities.event" for d in coordinator.devices.values() for kind,_ in d.capabilities
@@ -109,6 +115,28 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         else:hass.data.setdefault(f"{DOMAIN}_events",{})[entry.entry_id]=events
     _register_services(hass)
     return True
+
+
+def _update_segment_registry(hass, entry, coordinator):
+    """Apply segment visibility choices while preserving explicit user disables."""
+    from homeassistant.helpers import entity_registry as er
+    from .capabilities import segment_indices, segment_mode
+    registry = er.async_get(hass)
+    desired = {}
+    for device in coordinator.devices.values():
+        prefix = device.device_id.lower().replace(":", "") + "_"
+        mode = segment_mode(entry.options, device.device_id)
+        for index in segment_indices(device):
+            desired[f"{prefix}segment_{index}"] = mode in ("individual", "both")
+        desired[prefix + "segments_group"] = mode in ("grouped", "both")
+    for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
+        enabled = desired.get(entity.unique_id)
+        if enabled is None or entity.disabled_by == er.RegistryEntryDisabler.USER:
+            continue
+        if enabled and entity.disabled_by == er.RegistryEntryDisabler.INTEGRATION:
+            registry.async_update_entity(entity.entity_id, disabled_by=None)
+        elif not enabled and entity.disabled_by is None:
+            registry.async_update_entity(entity.entity_id, disabled_by=er.RegistryEntryDisabler.INTEGRATION)
 
 
 def _register_services(hass:HomeAssistant)->None:
@@ -125,7 +153,7 @@ def _register_services(hass:HomeAssistant)->None:
 
     async def scenes(call:ServiceCall):
         c,d=_entry_coordinator(hass,call.data["device_id"])
-        await c.async_load_scenes(d)
+        await c.async_load_scenes(d, refresh=True)
 
     async def app_request(call:ServiceCall):
         entry_id=call.data.get("entry_id")

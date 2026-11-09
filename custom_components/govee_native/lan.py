@@ -63,9 +63,10 @@ class _LanProtocol(asyncio.DatagramProtocol):
 
 
 class GoveeLan:
-    def __init__(self, devices: dict[str, Device], on_update: Callable[[], None]):
+    def __init__(self, devices: dict[str, Device], on_update: Callable[[], None], on_report=None):
         self.devices = devices
         self._on_update = on_update
+        self._on_report = on_report
         self.transport: asyncio.DatagramTransport | None = None
         self.routes: dict[str, str] = {}  # normalized device -> vetted local IP
         self._waiters: dict[str, asyncio.Future[dict]] = {}
@@ -74,6 +75,8 @@ class GoveeLan:
         self._last_scan = 0.0
         self.last_seen: dict[str, float] = {}
         self.last_error: str | None = None
+        self._write_misses: dict[str, int] = {}
+        self._write_retry_after: dict[str, float] = {}
 
     async def async_start(self) -> bool:
         loop = asyncio.get_running_loop()
@@ -153,20 +156,25 @@ class GoveeLan:
         if type(kelvin) is int and (kelvin == 0 or 2000 <= kelvin <= 9000):
             states[(COLOR, "colorTemperatureK")] = kelvin
         if not states:return
-        device.report({k:v for k,v in states.items() if device.has(*k)}, "lan")
+        states = {k: v for k, v in states.items() if device.has(*k)}
+        if self._on_report:
+            self._on_report(device, states, "lan")
+        else:
+            device.report(states, "lan")
         self.last_seen[normalize_id(device.device_id)] = monotonic()
         waiter = self._waiters.pop(ip, None)
         if waiter is not None and not waiter.done():
             waiter.set_result(data)
         self._on_update()
 
-    async def async_control(self, device: Device, kind: str, instance: str, value: Any) -> bool:
+    async def async_control(self, device: Device, kind: str, instance: str, value: Any, *, on_send=None) -> bool:
         """True only if the new state was read back; False triggers cloud fallback."""
         if device.kind != "light" or self.transport is None:
             return False
         destination = self.routes.get(normalize_id(device.device_id))
         cmd = lan_command(kind, instance, value)
-        if destination is None or cmd is None or not self.available(device):
+        if (destination is None or cmd is None or not self.available(device)
+                or monotonic() < self._write_retry_after.get(device.device_id, 0)):
             return False
         name, data, state_field, expected = cmd
         async with self._locks[destination]:
@@ -175,19 +183,41 @@ class GoveeLan:
                 await asyncio.sleep(0.12 - gap)
             self.transport.sendto(json.dumps({"msg": {"cmd": name, "data": data}}).encode(), (destination, CONTROL_PORT))
             self._last_send[destination] = monotonic()
+            if on_send:
+                on_send()
             await asyncio.sleep(0.12)
             loop = asyncio.get_running_loop()
             waiter: asyncio.Future[dict] = loop.create_future()
             self._waiters[destination] = waiter
             self.transport.sendto(b'{"msg":{"cmd":"devStatus","data":{}}}', (destination, CONTROL_PORT))
             try:
-                status = await asyncio.wait_for(waiter, timeout=2)
-                return status.get(state_field) == expected
+                status = await asyncio.wait_for(waiter, timeout=0.5)
+                actual = status.get(state_field)
+                matched = actual == expected
+                if state_field == "brightness" and type(actual) is int:
+                    matched = abs(actual - expected) <= 2
+                elif state_field == "colorTemInKelvin" and type(actual) is int:
+                    matched = abs(actual - expected) <= 150
+                elif state_field == "color" and isinstance(actual, dict):
+                    matched = all(type(actual.get(k)) is int and abs(actual[k] - v) <= 2 for k, v in expected.items())
+                self._note_write_result(device, matched)
+                return matched
             except asyncio.TimeoutError:
+                self._note_write_result(device, False)
                 return False
             finally:
                 if self._waiters.get(destination) is waiter:
                     self._waiters.pop(destination, None)
+
+    def _note_write_result(self, device, success):
+        if success:
+            self._write_misses.pop(device.device_id, None)
+            self._write_retry_after.pop(device.device_id, None)
+        else:
+            misses = self._write_misses.get(device.device_id, 0) + 1
+            self._write_misses[device.device_id] = misses
+            if misses >= 3:
+                self._write_retry_after[device.device_id] = monotonic() + 300
 
     async def async_stop(self) -> None:
         if self.transport:

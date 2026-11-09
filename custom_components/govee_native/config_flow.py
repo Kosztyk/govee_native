@@ -146,14 +146,17 @@ class GoveeNativeOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             user_input = dict(user_input)
             configure = user_input.pop("configure_bluetooth", False)
+            self._configure_segments = user_input.pop("configure_segments", False)
             self._pending_options = {**self.config_entry.options, **user_input}
             if configure:
                 return await self.async_step_bluetooth()
-            return self.async_create_entry(title="",data=self._pending_options)
+            return await self._finish_options()
         opts=self.config_entry.options
         return self.async_show_form(step_id="init",data_schema=vol.Schema({
             vol.Required(CONF_POLL_SECONDS,default=opts.get(CONF_POLL_SECONDS,DEFAULT_POLL_SECONDS)):
                 vol.All(vol.Coerce(int),vol.Range(min=MIN_POLL_SECONDS,max=MAX_POLL_SECONDS)),
+            vol.Required("daily_request_budget", default=opts.get("daily_request_budget", 9000)):
+                vol.All(vol.Coerce(int), vol.Range(min=500, max=10000)),
             vol.Required(CONF_APP_MQTT,default=opts.get(CONF_APP_MQTT,bool(self.config_entry.data.get(CONF_EMAIL)))):bool,
             vol.Required(CONF_APP_CATALOGS,default=opts.get(CONF_APP_CATALOGS,True)):bool,
             vol.Required(CONF_LAN,default=opts.get(CONF_LAN,False)):bool,
@@ -166,13 +169,45 @@ class GoveeNativeOptionsFlow(config_entries.OptionsFlow):
                 selector.SelectSelectorConfig(options=[{"value":"classic","label":"Original H6199 firmware"},
                                                        {"value":"updated","label":"Updated H6199 firmware"}])),
             vol.Optional("configure_bluetooth", default=False):bool,
+            vol.Optional("configure_segments", default=False):bool,
+        }))
+
+    async def _finish_options(self):
+        if getattr(self, "_configure_segments", False):
+            self._configure_segments = False
+            return await self.async_step_segments()
+        return self.async_create_entry(title="", data=self._pending_options)
+
+    async def async_step_segments(self, user_input=None):
+        from .capabilities import segment_indices, SEGMENT_MODES
+        coordinator = self.hass.data.get(DOMAIN, {}).get(self.config_entry.entry_id)
+        devices = [d for d in coordinator.devices.values() if segment_indices(d)] if coordinator else []
+        if not devices:
+            return self.async_abort(reason="no_segment_devices")
+        errors = {}
+        if user_input is not None:
+            selected = user_input.get("device_ids", [])
+            mode = user_input.get("mode")
+            if not selected or set(selected) - {d.device_id for d in devices} or mode not in SEGMENT_MODES:
+                errors["base"] = "invalid_segment_selection"
+            else:
+                modes = {**self._pending_options.get("segment_mode_by_device", {}), **dict.fromkeys(selected, mode)}
+                self._pending_options["segment_mode_by_device"] = modes
+                return await self._finish_options()
+        return self.async_show_form(step_id="segments", errors=errors, data_schema=vol.Schema({
+            vol.Required("device_ids"): selector.SelectSelector(selector.SelectSelectorConfig(multiple=True,
+                options=[{"value": d.device_id, "label": f"{d.name} ({len(segment_indices(d))} segments)"} for d in devices])),
+            vol.Required("mode", default="individual"): selector.SelectSelector(selector.SelectSelectorConfig(
+                options=[{"value": mode, "label": {"individual": "Individual segments", "grouped": "All segments together",
+                    "both": "Individual and grouped", "disabled": "Hide segment entities"}[mode]} for mode in SEGMENT_MODES])),
         }))
 
     async def async_step_bluetooth(self, user_input=None):
         from .bluetooth import valid_address
         errors = {}
         c = self.hass.data.get(DOMAIN, {}).get(self.config_entry.entry_id)
-        devices = [d for d in c.devices.values() if d.sku == "H6199"] if c else []
+        from .native_protocol import BLE_MODELS
+        devices = [d for d in c.devices.values() if d.sku.upper() in BLE_MODELS] if c else []
         if not devices:
             return self.async_abort(reason="no_bluetooth_devices")
         if user_input is not None:
@@ -184,7 +219,7 @@ class GoveeNativeOptionsFlow(config_entries.OptionsFlow):
                 addresses = {**self._pending_options.get(CONF_BLUETOOTH_ADDRESSES, {}), device_id: address}
                 self._pending_options[CONF_BLUETOOTH_ADDRESSES] = addresses
                 self._pending_options[CONF_BLUETOOTH] = True
-                return self.async_create_entry(title="", data=self._pending_options)
+                return await self._finish_options()
         return self.async_show_form(step_id="bluetooth", errors=errors, data_schema=vol.Schema({
             vol.Required("device_id"): selector.SelectSelector(selector.SelectSelectorConfig(
                 options=[{"value": d.device_id, "label": d.name} for d in devices])),

@@ -7,7 +7,7 @@ from homeassistant.core import HomeAssistant
 from .const import DOMAIN, PROPERTY
 from .entity import GoveeEntity, readable
 
-BOOLEAN_NAMES = {"motion", "presence", "waterleak", "leak", "door", "window", "smoke", "contact"}
+BOOLEAN_NAMES = {"motion", "presence", "waterleak", "leak", "door", "window", "smoke", "contact", "pumpfault"}
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):

@@ -56,26 +56,38 @@
           "mqtt_events": "Enable official Developer API events",
           "private_mutations": "Allow advanced private-app write methods (experimental)",
           "use_legacy_api_key": "Use existing legacy Govee Developer API key for scenes and fallback (opt-in; may increase API traffic)",
-          "bluetooth_control": "Enable direct H6199 Bluetooth control",
-          "prefer_bluetooth": "Prefer Bluetooth after LAN, before cloud MQTT",
-          "configure_bluetooth": "Set a Bluetooth address for an H6199",
-          "h6199_profile": "H6199 firmware protocol profile"
+          "bluetooth_control": "Enable direct Bluetooth control (H6199 / H1270)",
+          "prefer_bluetooth": "Prefer Bluetooth before LAN and cloud",
+          "configure_bluetooth": "Set a Bluetooth address for a supported light",
+          "h6199_profile": "H6199 firmware protocol profile",
+          "daily_request_budget": "Developer API read budget per day (control keeps a reserve)",
+          "configure_segments": "Configure segment controls for devices"
         }
       },
       "bluetooth": {
-        "title": "H6199 Bluetooth address",
-        "description": "Select your backlight and enter its six-byte Bluetooth MAC address, shown in the Govee app device information or Home Assistant Bluetooth discovery. Use this when automatic account metadata does not provide it.",
+        "title": "Bluetooth address",
+        "description": "Select a supported light and enter its six-byte Bluetooth MAC address from Govee device information or Home Assistant Bluetooth discovery.",
         "data": {
-          "device_id": "Backlight",
+          "device_id": "Light",
           "address": "Bluetooth MAC address (AA:BB:CC:DD:EE:FF)"
+        }
+      },
+      "segments": {
+        "title": "Segment controls",
+        "description": "Choose devices and how their segment lights appear. Colours are remembered across restarts. Brightness is offered only when independently supported.",
+        "data": {
+          "device_ids": "Devices",
+          "mode": "Segment controls"
         }
       }
     },
     "error": {
-      "invalid_bluetooth_address": "Select an H6199 and enter a six-byte MAC address separated by colons."
+      "invalid_bluetooth_address": "Select a supported light and enter its six-byte Bluetooth MAC address.",
+      "invalid_segment_selection": "Select discovered devices and a segment display mode."
     },
     "abort": {
-      "no_bluetooth_devices": "No H6199 backlight was discovered in this account."
+      "no_bluetooth_devices": "No supported H6199 or H1270 light was discovered.",
+      "no_segment_devices": "No devices advertise addressable RGBIC segments."
     }
   }
 }

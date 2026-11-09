@@ -41,6 +41,10 @@ class FakeMqtt:
     async def stop(self):pass
 
 
+def make_mqtt_responsive(c):
+    c.mqtt_update({"device": next(iter(c.devices)), "state": {"onOff": 0}})
+
+
 def cloud_device(c):
     d = next(iter(c.devices.values()))
     d.cloud_source = True
@@ -50,6 +54,7 @@ def cloud_device(c):
 
 async def test_fast_feedback_before_publish_returns_is_not_lost(coordinator):
     c = coordinator;d = next(iter(c.devices.values()));c.mqtt = FakeMqtt(c)
+    make_mqtt_responsive(c)
     await c.async_control(d, ON_OFF, "powerSwitch", 1)
     assert c.confirmed_commands == 1 and c.unconfirmed_commands == 0
     assert d.last_command_result == "confirmed"
@@ -58,29 +63,28 @@ async def test_fast_feedback_before_publish_returns_is_not_lost(coordinator):
 
 async def test_writes_are_serialized_per_device(coordinator):
     c = coordinator;d = next(iter(c.devices.values()));c.mqtt = FakeMqtt(c)
+    make_mqtt_responsive(c)
     await asyncio.gather(c.async_control(d, ON_OFF, "powerSwitch", 1), c.async_control(d, ON_OFF, "powerSwitch", 0))
     assert [call[2]["val"] for call in c.mqtt.calls if call[1] == "turn"] == [1, 0]
     assert c.confirmed_commands == 2 and d.state(ON_OFF, "powerSwitch") == 0
 
 
-async def test_broker_acceptance_is_not_device_confirmation(coordinator, monkeypatch):
+async def test_broker_acceptance_is_not_device_confirmation(coordinator):
     c = coordinator;d = next(iter(c.devices.values()));c.mqtt = FakeMqtt(c, confirm=False)
-    monkeypatch.setattr(coordinator_module, "MQTT_CONFIRM_TIMEOUT", 0.01)
-    with pytest.raises(GoveeError):await c.async_control(d, ON_OFF, "powerSwitch", 1)
-    assert c.confirmed_commands == 0 and c.unconfirmed_commands == 1
-    assert d.state(ON_OFF, "powerSwitch") is None
-    assert not c.pending_commands and not c._confirmation_waiters
+    make_mqtt_responsive(c)
+    await asyncio.wait_for(c.async_control(d, ON_OFF, "powerSwitch", 1), timeout=0.2)
+    assert c.confirmed_commands == 0 and c.has_pending(d)
+    assert d.state(ON_OFF, "powerSwitch") == 1 and d.assumed_keys
+    assert d.last_command_result == "mqtt_published_unconfirmed"
 
 
-async def test_timeout_falls_back_and_next_write_skips_broken_mqtt(coordinator, monkeypatch):
+async def test_unheard_device_skips_broker_and_uses_cloud_immediately(coordinator):
     c = coordinator;d = cloud_device(c);c.mqtt = FakeMqtt(c, confirm=False)
-    c.api = SimpleNamespace(control=AsyncMock())
-    monkeypatch.setattr(coordinator_module, "MQTT_CONFIRM_TIMEOUT", 0.01)
-    await c.async_control(d, ON_OFF, "powerSwitch", 1, refresh=False)
+    c.api = SimpleNamespace(control=AsyncMock(), can_poll=lambda: False)
+    await asyncio.wait_for(c.async_control(d, ON_OFF, "powerSwitch", 1, refresh=False), timeout=0.2)
     await c.async_control(d, ON_OFF, "powerSwitch", 0, refresh=False)
-    assert sum(call[1] == "turn" for call in c.mqtt.calls) == 1
-    assert c.api.control.await_count == 2
-    assert c.confirmed_commands == 0
+    assert not any(call[1] == "turn" for call in c.mqtt.calls)
+    assert c.api.control.await_count == 2 and not c.pending_commands
     assert d.last_command_result == "api_accepted_unconfirmed"
 
 
@@ -101,6 +105,7 @@ async def test_ble_write_is_explicitly_assumed(coordinator):
 
 async def test_native_video_uses_ptreal_and_does_not_claim_confirmation(coordinator):
     c = coordinator;d = next(iter(c.devices.values()));c.mqtt = FakeMqtt(c, confirm=False)
+    make_mqtt_responsive(c)
     await c.async_control(d, TOGGLE, "dreamViewToggle", 1)
     command = next(call for call in c.mqtt.calls if call[1] == "ptReal")
     assert command[2]["device"] == d.device_id
@@ -110,6 +115,7 @@ async def test_native_video_uses_ptreal_and_does_not_claim_confirmation(coordina
 
 async def test_region_write_updates_only_requested_regions(coordinator):
     c = coordinator;d = next(iter(c.devices.values()));c.mqtt = FakeMqtt(c, confirm=False)
+    make_mqtt_responsive(c)
     d.segment_colors[5] = 0x112233
     await c.async_control(d, SEGMENT, "segmentedColorRgb", {"segment": [0, 14], "rgb": 0xFF0000})
     assert d.segment_colors == {0: 0xFF0000, 5: 0x112233, 14: 0xFF0000}
@@ -149,7 +155,7 @@ async def test_discovery_merge_keeps_entity_device_object(coordinator):
 async def test_recent_push_avoids_cloud_state_poll(coordinator):
     c = coordinator;d = cloud_device(c)
     d.report({(ON_OFF, "powerSwitch"): 1}, "mqtt")
-    c.api = SimpleNamespace(state=AsyncMock())
+    c.api = SimpleNamespace(state=AsyncMock(), poll_interval=lambda base, devices: base, can_poll=lambda: True)
     await c._async_update_data()
     c.api.state.assert_not_awaited()
 
@@ -234,6 +240,7 @@ async def test_segment_slider_retains_write_only_diagnostics(coordinator):
     c = coordinator
     d = next(iter(c.devices.values()))
     c.mqtt = FakeMqtt(c, confirm=False)
+    make_mqtt_responsive(c)
     d.report({(ON_OFF, "powerSwitch"): 1}, "mqtt")
     entity = GoveeSegmentLight(c, d, 0)
     entity.hass = c.hass
@@ -267,7 +274,7 @@ async def test_connection_sensor_does_not_equate_broker_to_device(coordinator, m
 
 @pytest.mark.parametrize("uptime", [0.0, 60.0, 1000000.0])
 async def test_stale_broker_device_is_not_available(coordinator, monkeypatch, uptime):
-    monkeypatch.setattr("custom_components.govee_native.entity.monotonic", lambda: uptime)
+    monkeypatch.setattr("custom_components.govee_native.coordinator.monotonic", lambda: uptime)
     monkeypatch.setattr("custom_components.govee_native.models.monotonic", lambda: uptime)
     c = coordinator;d = next(iter(c.devices.values()));c.mqtt = FakeMqtt(c)
     assert not GoveeEntity(c, d, "test").available
@@ -281,7 +288,7 @@ async def test_diagnostic_catalog_ids_are_hashed(coordinator):
     c.app_catalogs[f"scenes_{d.device_id}"] = {"data": []}
     result = await async_get_config_entry_diagnostics(c.hass, SimpleNamespace(entry_id="entry"))
     assert d.device_id not in json.dumps(result)
-    assert result["version"] == "0.4.2"
+    assert result["version"] == "0.5.0"
 
 
 @pytest.mark.parametrize("uptime", [0.0, 60.0, 1000000.0])
@@ -315,9 +322,9 @@ async def test_ble_does_not_connect_to_stale_advertisement(coordinator):
         connect.assert_not_awaited()
 
 
-async def test_ble_write_disconnects_and_does_not_claim_device_confirmation(coordinator):
+async def test_ble_reuses_connection_and_does_not_claim_device_confirmation(coordinator):
     c = coordinator;d = next(iter(c.devices.values()));ble = GoveeBluetooth(c.hass)
-    client = SimpleNamespace(services=SimpleNamespace(get_characteristic=lambda _: SimpleNamespace(properties=["write"])),
+    client = SimpleNamespace(address="AA:BB:CC:DD:EE:FF", is_connected=True, services=SimpleNamespace(get_characteristic=lambda uuid: None if uuid.endswith("2b12") else SimpleNamespace(properties=["write"])),
                              write_gatt_char=AsyncMock(), disconnect=AsyncMock())
     with patch("custom_components.govee_native.bluetooth.bluetooth.async_address_present", return_value=True), patch("custom_components.govee_native.bluetooth.bluetooth.async_ble_device_from_address", return_value=object()), patch("custom_components.govee_native.bluetooth.establish_connection", new_callable=AsyncMock, return_value=client):
         # Real Bleak clients are hashable; SimpleNamespace is not.
@@ -326,9 +333,12 @@ async def test_ble_write_disconnects_and_does_not_claim_device_confirmation(coor
         instance = Client();instance.__dict__.update(client.__dict__)
         with patch("custom_components.govee_native.bluetooth.establish_connection", new_callable=AsyncMock, return_value=instance):
             assert await ble.async_write(d, [frame(0x33, 1, 1)])
+            assert await ble.async_write(d, [frame(0x33, 1, 0)])
+            instance.disconnect.assert_not_awaited()
+            assert instance.write_gatt_char.await_count == 3  # one keepalive, two commands
+            await ble.async_stop()
             instance.disconnect.assert_awaited_once()
-            assert instance.write_gatt_char.await_count == 2  # keepalive + command
-    assert ble.writes == 1 and not d.states
+    assert ble.writes == 2 and not d.states
 
 
 async def test_all_platforms_construct_h6199_entities(coordinator):
@@ -391,7 +401,7 @@ async def test_real_setup_and_unload_registers_and_cleans_services(coordinator):
     entry = ConfigEntry(domain="govee_native", version=2, minor_version=1, source="user", title="Test",
         data={"email": "test@example.invalid", "app_token": "test", "app_account_topic": "GA/test", "app_account_id": "test"},
         options={"app_catalogs": False, "app_mqtt": False}, unique_id="test", subentries_data=[], discovery_keys=MappingProxyType({}), state=ConfigEntryState.SETUP_IN_PROGRESS)
-    with patch.object(integration, "async_get_clientsession", return_value=object()), patch.object(GoveeAppAPI, "devices", new_callable=AsyncMock, return_value=[{"device": "id", "sku": "H6199", "topic": "GD/test"}]), patch.object(hass.config_entries, "async_forward_entry_setups", new_callable=AsyncMock), patch.object(hass.config_entries, "async_unload_platforms", new_callable=AsyncMock, return_value=True):
+    with patch("homeassistant.helpers.entity_registry.async_get", return_value=SimpleNamespace(entities=SimpleNamespace(get_entries_for_config_entry_id=lambda _: []))), patch.object(integration, "async_get_clientsession", return_value=object()), patch.object(GoveeAppAPI, "devices", new_callable=AsyncMock, return_value=[{"device": "id", "sku": "H6199", "topic": "GD/test"}]), patch.object(hass.config_entries, "async_forward_entry_setups", new_callable=AsyncMock), patch.object(hass.config_entries, "async_unload_platforms", new_callable=AsyncMock, return_value=True):
         assert await integration.async_setup_entry(hass, entry)
         assert hass.services.has_service("govee_native", "set_segments")
         assert entry.entry_id in hass.data["govee_native"]

@@ -27,7 +27,7 @@ class GoveeRefreshButton(GoveeEntity, ButtonEntity):
 
     async def async_press(self):
         if self.catalog:
-            await self.coordinator.async_load_scenes(self.device)
+            await self.coordinator.async_load_scenes(self.device, refresh=True)
         else:
             if self.coordinator.lan:self.coordinator.lan.query_status()
             await self.coordinator.async_query_status(force=True)

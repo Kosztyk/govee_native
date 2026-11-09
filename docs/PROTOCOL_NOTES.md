@@ -1,9 +1,11 @@
 # Protocol notes and implementation scope
 
 The integration combines an optional Govee Developer API client, private Govee
-Home account discovery/MQTT, published LAN behavior and model-specific H6199
-Bluetooth/native frames. It does not embed an extracted application secret or
-redistribute APKs, decompiled application code, user logs or account dumps.
+Home account discovery/MQTT, published LAN behavior and model-specific native
+frames. The encrypted BLE helper includes fixed vendor protocol constants.
+Account credentials, APKs, user logs and account dumps are not distributed.
+See the component's [third-party notices](../custom_components/govee_native/THIRD_PARTY_NOTICES.md)
+for the adapted code, source version, copyrights and full MIT license.
 
 ## Implementation references
 

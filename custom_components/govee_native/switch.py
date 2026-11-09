@@ -18,6 +18,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
             entities.append(GoveeSwitch(coordinator, d, ON_OFF, "powerSwitch", primary=True))
         for kind, instance in d.capabilities:
             if kind == TOGGLE:
+                if instance in ("nativeMainPanel", "nativeRing") or (d.sku.upper() == "H1270" and instance == "mainLightToggle"):
+                    continue
+                if d.sku.upper() == "H1252" and instance in ("mainLightToggle", "backgroundLightToggle"):
+                    continue
                 entities.append(GoveeSwitch(coordinator, d, kind, instance))
     async_add_entities(entities)
 

@@ -29,7 +29,7 @@ def discover_app_device(raw: dict) -> dict:
     if not values:
         return {}
     is_light = likely_light(values["sku"], raw)
-    is_plug = values["sku"].upper() in ("H5080", "H5083", "H5160", "H5161")
+    is_plug = values["sku"].upper() in ("H5080", "H5083", "H5086", "H5160", "H5161")
     caps: list[dict] = []
     if (is_light or is_plug) and (values["topic"] or (values["sku"] == "H6199" and values.get("ble_address"))):
         caps = [

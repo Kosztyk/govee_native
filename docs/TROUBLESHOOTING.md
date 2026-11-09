@@ -12,7 +12,9 @@ the logs for dependency-install or integration-import errors.
 Check that the polling interval is between **30 and 600 seconds** and that a
 firmware profile is selected. Selecting **Set a Bluetooth address** opens a
 second form; select a backlight and enter a valid six-byte Bluetooth MAC to
-finish it. An eight-byte cloud device ID is rejected.
+finish it. An eight-byte cloud device ID is rejected. The segment-control
+choice also opens a second form; select devices and a display mode to finish.
+The daily read budget must be between 500 and 10000.
 
 The ordinary options-save path was exercised successfully during investigation,
 but the reported UI Submit failure was not reproduced. If it persists, report
@@ -29,6 +31,8 @@ Look at the device's **App connection** sensor and the entity attributes.
 |---|---|
 | `mqtt_broker_connected` | Connection to the cloud broker; it does not prove that the device received a command. |
 | `mqtt_messages_received` | Messages received during this connection. |
+| `mqtt_device_responsive` | This device has actually replied in the current MQTT session. |
+| `mqtt_silent_session` | The connected broker session delivered no usable traffic despite queries. |
 | `commands_confirmed` | Matching device reports confirmed commands. |
 | `commands_unconfirmed` | Commands lacked the expected device confirmation. |
 | `last_command_transport` | Connection used for the latest command. |
@@ -37,7 +41,7 @@ Look at the device's **App connection** sensor and the entity attributes.
 
 If MQTT receives no matching device reports, check that the device is online
 in Govee Home. If Bluetooth is configured and available, try it on a compatible
-H6199. The Developer API can serve as a fallback for capabilities it advertises.
+light. The Developer API can serve as a fallback for capabilities it advertises.
 Repeated MQTT confirmation failures temporarily skip that transport so another
 configured connection can be tried.
 
@@ -67,8 +71,9 @@ region status is not returned by this protocol.
 ## Scenes or additional controls are missing
 
 Controls are created from device capabilities and supported model-specific
-features. Refresh scenes/catalogs where available. Optional H6199 segment
-lights must be enabled in the device's entity list. A feature in Govee Home
+features. Refresh scenes/catalogs where available. Use Configure → Configure
+segment controls to choose individual or grouped lights. Check the device's
+entity list for explicitly user-disabled segments. A feature in Govee Home
 does not automatically imply a corresponding entity here.
 
 ## Collect information for an issue

@@ -1,4 +1,4 @@
-# Feature coverage — 0.4.2
+# Feature coverage — 0.5.0
 
 “Implemented” means code exists and its packet/state behavior was tested locally.
 It does not mean every feature was physically exercised on every H6199.
@@ -8,14 +8,19 @@ It does not mean every feature was physically exercised on every H6199.
 | Consistent slider controls | Added in 0.4.1 for lights, switches, fans and humidifiers | Missing state starts visually off with `state_assumed: true`; confirmation diagnostics remain independent |
 | Account login and email verification | Existing implementation retained | App compatibility profile retained; not rewritten as a 7.7.11 clone |
 | Device inventory and metadata | Improved | Exact BLE address and firmware/hardware metadata retained; local metadata cache added |
-| Power, global brightness, RGB | Implemented via advertised transports | MQTT basic controls require matching device feedback; direct BLE is H6199 only |
+| Power, global brightness, RGB | Implemented via advertised transports | MQTT routing requires live-session feedback; confirmation is nonblocking. Direct BLE is model-gated to H6199/H1270 |
 | White color temperature | LAN/native MQTT/OpenAPI | No direct BLE Kelvin lookup implementation |
 | LAN control | Discovery/status/control implemented | Requires real supported firmware and fresh responses; no promise that this H6199 supports LAN |
-| Direct Bluetooth | Added for H6199 | Actual MAC, connectable adapter/proxy and compatible unencrypted firmware required |
-| Bluetooth encryption/provisioning | Not implemented | No extracted keys or guessed session protocol |
+| Direct Bluetooth | Reused connections for H6199/H1270 | Actual MAC and connectable adapter/proxy required; known encrypted sessions supported |
+| Bluetooth encryption | Known vendor session protocol implemented | Imported MIT helper and fixed protocol constants; not an onboarding/provisioning editor |
 | Connection diagnostics | Improved | Distinguishes broker connection, reports, confirmation, assumed writes, BLE and LAN problems |
-| 15 H6199 RGBIC region colors | Added | Optional disabled-by-default entities; zero-based service indices 0..14; readback assumed |
-| Independent region hardware brightness | Only when advertised by OpenAPI | Not added to the H6199 BLE protocol; main light brightness is global |
+| 15 H6199 RGBIC region colors | Added | Individual/grouped/both/hidden options; original entity IDs retained; colours restored and readback assumed |
+| Independent region hardware brightness | Advertised API support and known masked ceiling-light protocol | No invented H6199 brightness slider; real brightness commands are sent where supported |
+| Other RGBIC devices | Capability-based segment discovery with narrow SKU corrections | Index range and per-command batch size are kept separate |
+| Ceiling-light zones | H1232 main panel, H1252 main panel/ring, H1270 panel/ring preservation | Model-specific transport gates; not a universal ceiling-light protocol |
+| Native multi-outlet control | H5160/H5161 individual outlets | MQTT addressed bitmask; never sent as a REST master-power value |
+| Extra sensor decoding | H5086 power/energy; H7152 ambient/pump; H5106 PM2.5; supported thermometer/probe families | Read-only model gates; energy tracks resets and reboot restoration |
+| Polling and budgets | Persistent daily read count, header backoff, bounded local-state skipping and independent private app polling | Healthy pushes do not postpone polls of cloud-only devices |
 | Gradient | Added native H6199 routes | MQTT ptReal or BLE; assumed setting until usable readback |
 | Video/DreamView mode | Added native H6199 routes | Video off changes to last RGB; this is camera video mode, not a full multi-device DreamView editor |
 | Video area, style, saturation | Added | Partial/All, Movie/Game and 0..100 saturation; settings are integration last-sent values |

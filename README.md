@@ -7,7 +7,7 @@
 Control Govee devices from Home Assistant using a Govee Home account, the
 Developer API, and supported local connections.
 
-**Version:** 0.4.2 · **Home Assistant:** 2026.11.0 or newer ·
+**Version:** 0.5.0 · **Home Assistant:** 2026.11.0 or newer ·
 **Integration domain:** `govee_native`
 
 This is a community custom integration. It discovers the capabilities available
@@ -23,9 +23,12 @@ You can use those entities in dashboards, scenes, scripts and automations.
 | Optional Developer API | Additional advertised devices, capabilities, scene catalogs and cloud fallback. |
 | Supported LAN devices | Local discovery, control and status without sending each command through the cloud. |
 | H6199 backlights | Direct Bluetooth, Color/Video/Music modes, video settings, music sensitivity, Gradient and DreamView/video toggles. |
-| H6199 segments | Fifteen optional RGB region lights, disabled by default. |
+| RGBIC segments | Automatic capability-based segment lights, grouped controls, saved colours, and per-device display options. H6199 keeps its 15 region identities. |
 | Other device families | Switches, fans, humidifiers, heaters, sensors and events when their advertised capabilities support them. |
-| Diagnostics | Transport, device feedback, command confirmation and connection information. |
+| Responsive controls | Immediate command-derived UI feedback, background confirmation, and replacement of obsolete queued slider values. |
+| Bluetooth | Reused connections on supported H6199/H1270 controllers, including the known encrypted protocol. |
+| Extra model features | Independent ceiling-light zones, H5160/H5161 outlets, H5086 energy/power, H7152 pump/ambient readings, H5106 air quality and supported thermometer/probe readings. |
+| Diagnostics | Transport health, device feedback, confirmation, query quarantine and API budget information. |
 
 On/off controls keep the same slider in both states. Before any value is known,
 the slider starts visually off and `state_assumed` remains true. A successful
@@ -85,10 +88,17 @@ Full instructions, updates, rollback and migration are in
 To change connection settings, select **Configure** on the integration entry.
 Start with the defaults and enable optional connections as needed.
 
-For H6199 Bluetooth, enable **direct H6199 Bluetooth control**. If no Bluetooth
-address was discovered, select **Set a Bluetooth address for an H6199**, choose
+For supported local Bluetooth, enable **direct Bluetooth control**. If no Bluetooth
+address was discovered, select **Set a Bluetooth address for a supported light**, choose
 the backlight and enter its real six-byte MAC address. Its cloud device ID is
 not necessarily its Bluetooth address.
+
+To choose individual segment lights, a grouped light, both, or neither, open
+**Configure → Configure segment controls for devices**. Saved colours survive
+restarts. H6199 brightness remains a whole-light control.
+
+Existing device and entity IDs are retained; do not remove and re-add the
+integration. Explicitly user-disabled segment entities remain disabled.
 
 All options, firmware profiles and connection priorities are explained in
 [Configuration](docs/CONFIGURATION.md).
@@ -99,6 +109,7 @@ All options, firmware profiles and connection priorities are explained in
 |---|---|
 | [Installation](docs/INSTALLATION.md) | Marketplace, GitHub ZIP, updates, rollback and existing integrations. |
 | [Configuration](docs/CONFIGURATION.md) | Accounts, options, local connections and H6199 profiles. |
+| [Response and segment controls](docs/RESPONSIVENESS_AND_SEGMENTS.md) | Sending, confirmation, model support and upgrade behavior. |
 | [Feature coverage](docs/FEATURE_MATRIX.md) | Implemented controls and model-specific limitations. |
 | [Actions](docs/ACTIONS.md) | Additional `govee_native` actions and automation use. |
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | Setup, Submit, unavailable devices and unconfirmed commands. |
@@ -109,9 +120,10 @@ All options, firmware profiles and connection priorities are explained in
 
 ## How it was tested
 
-The 0.4.2 software regression suite passed **98 tests** against real Home
+The 0.5.0 software regression suite passed **158 tests** against real Home
 Assistant **2026.11.0** classes on Python **3.14.9**. Tests cover MQTT routing and
-confirmation, Bluetooth packet handling, LAN freshness, state reconciliation,
+confirmation, queue coalescing, segment discovery/batching/restoration, encrypted Bluetooth,
+API budget/backoff, model-specific state decoding, LAN freshness, state reconciliation,
 entity setup/unload, options validation and consistent slider states. Runtime
 lint checks and Python compilation also passed.
 

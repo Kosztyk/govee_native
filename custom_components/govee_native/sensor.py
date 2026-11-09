@@ -1,5 +1,5 @@
 """Capability sensors plus private Govee app device readings and catalogs."""
-from homeassistant.components.sensor import SensorEntity, SensorDeviceClass
+from homeassistant.components.sensor import SensorEntity, SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.const import PERCENTAGE
@@ -10,18 +10,27 @@ from .entity import GoveeEntity, readable
 from .binary_sensor import BOOLEAN_NAMES
 from .app_models import app_readings
 from time import monotonic
+from .energy_counter import EnergyCounter
+from homeassistant.util import dt as dt_util
 
 MEASUREMENTS={
     "sensorHumidity":(SensorDeviceClass.HUMIDITY,PERCENTAGE),
     "carbonDioxideConcentration":(SensorDeviceClass.CO2,"ppm"),
     "pm25":(SensorDeviceClass.PM25,"µg/m³"),
     "pm10":(SensorDeviceClass.PM10,"µg/m³"),
+    "voltage": (SensorDeviceClass.VOLTAGE, "V"),
+    "current": (SensorDeviceClass.CURRENT, "A"),
+    "power": (SensorDeviceClass.POWER, "W"),
+    "powerFactor": (SensorDeviceClass.POWER_FACTOR, "%"),
+    "battery": (SensorDeviceClass.BATTERY, "%"),
+    "onTime": (SensorDeviceClass.DURATION, "s"),
 }
 
 
 async def async_setup_entry(hass:HomeAssistant,entry:ConfigEntry,async_add_entities):
     coordinator=hass.data[DOMAIN][entry.entry_id]
-    entities=[GoveeSensor(coordinator,d,kind,instance)
+    entities=[(GoveeEnergySensor(coordinator, d) if d.sku.upper() == "H5086" and instance == "energyToday"
+               else GoveeSensor(coordinator,d,kind,instance))
         for d in coordinator.devices.values()
         for kind,instance in d.capabilities
         if kind==PROPERTY and not any(fragment in instance.lower() for fragment in BOOLEAN_NAMES)]
@@ -45,11 +54,72 @@ class GoveeSensor(GoveeEntity,SensorEntity):
         self._attr_name=readable(instance)
         if instance in MEASUREMENTS:
             self._attr_device_class,self._attr_native_unit_of_measurement=MEASUREMENTS[instance]
+            self._attr_state_class = SensorStateClass.MEASUREMENT
+        if instance in ("sensorTemperature", "sensorTemperature2") or instance.endswith("Temperature"):
+            self._attr_device_class = SensorDeviceClass.TEMPERATURE
+            self._attr_native_unit_of_measurement = "°C"
+            self._attr_state_class = SensorStateClass.MEASUREMENT
+
+    @property
+    def native_unit_of_measurement(self):
+        if self._attr_device_class == SensorDeviceClass.TEMPERATURE and self.instance in ("sensorTemperature", "sensorTemperature2"):
+            if self.device.sku.upper() in {"H7152", "H5106"}:
+                return "°C"
+            unit = self.device.app_data.get("fahrenheit")
+            if type(unit) is bool:
+                return "°F" if unit else "°C"
+            if self.device.sku.upper() in {"H5179", "H5310", "H5111", "H5109", "H5110", "H5053", "H5171", "H5103"}:
+                return "°F"
+        return self._attr_native_unit_of_measurement
 
     @property
     def native_value(self):
         value=self.device.state(self.kind,self.instance)
+        if isinstance(value, dict):
+            for key in ("value", "temperature", "humidity"):
+                if type(value.get(key)) in (int, float):
+                    return value[key]
         return value if isinstance(value,(int,float,str,bool)) else None
+
+
+class GoveeEnergySensor(GoveeEntity, SensorEntity):
+    """Daily counter with explicit resets; a reboot restore cannot count twice."""
+    _attr_name = "Energy today"
+    _attr_device_class = SensorDeviceClass.ENERGY
+    _attr_native_unit_of_measurement = "kWh"
+    _attr_state_class = SensorStateClass.TOTAL
+
+    def __init__(self, coordinator, device):
+        super().__init__(coordinator, device, "sensor_energyToday")
+        self.counter = EnergyCounter.from_dict(device.local_settings.get("energy_counter", {}))
+        self._update_counter()
+
+    def _update_counter(self):
+        energy = self.device.state(PROPERTY, "energyToday")
+        on_time = self.device.state(PROPERTY, "onTime")
+        uptime = self.device.local_settings.get("reported_uptime")
+        if type(energy) not in (int, float) or type(on_time) is not int or type(uptime) is not int:
+            return
+        now = dt_util.utcnow()
+        if self.counter is None:
+            self.counter = EnergyCounter.new(now, round(energy * 10000), on_time, uptime)
+        else:
+            self.counter.update(now, round(energy * 10000), on_time, uptime)
+        self.device.local_settings["energy_counter"] = self.counter.as_dict()
+        self.coordinator.save_runtime_later()
+
+    def _handle_coordinator_update(self):
+        self._update_counter()
+        super()._handle_coordinator_update()
+
+    @property
+    def native_value(self):
+        return (self.counter.energy_deciwatt_hours / 10000
+                if self.counter and self.device.state(PROPERTY, "energyToday") is not None else None)
+
+    @property
+    def last_reset(self):
+        return self.counter.last_reset if self.counter else None
 
 
 class GoveeAppCatalogSensor(CoordinatorEntity,SensorEntity):
@@ -86,9 +156,7 @@ class GoveeAppConnectionSensor(GoveeEntity,SensorEntity):
             return "lan"
         if self.coordinator.prefer_bluetooth and self.coordinator.ble and self.coordinator.ble.available(self.device):
             return "bluetooth"
-        if (self.coordinator.mqtt and self.coordinator.mqtt.connected and self.device.app_data.get("topic")
-                and self.device.last_transport is not None
-                and monotonic() - self.device.last_report_at < 180):
+        if self.coordinator.mqtt_healthy(self.device):
             return "mqtt"
         if self.coordinator.ble and self.coordinator.ble.available(self.device):
             return "bluetooth"
@@ -103,7 +171,7 @@ class GoveeAppConnectionSensor(GoveeEntity,SensorEntity):
     @property
     def extra_state_attributes(self):
         mqtt=self.coordinator.mqtt
-        pending=self.coordinator.pending_commands.get(self.device.device_id)
+        pending=self.coordinator.has_pending(self.device)
         return {
             "mqtt_broker_connected": bool(mqtt and mqtt.connected),
             "mqtt_messages_received": mqtt.messages_received if mqtt else 0,
@@ -126,6 +194,10 @@ class GoveeAppConnectionSensor(GoveeEntity,SensorEntity):
             "bluetooth_error": self.coordinator.ble.failures.get(self.device.device_id) if self.coordinator.ble else None,
             "mqtt_command_cooldown": max(0, round(self.coordinator._mqtt_retry_after.get(self.device.device_id, 0) - monotonic())),
             "lan_error": self.coordinator.lan.last_error if self.coordinator.lan else None,
+            "mqtt_device_responsive": self.coordinator.mqtt_healthy(self.device),
+            "mqtt_silent_session": bool(getattr(mqtt, "silent", False)),
+            "effective_cloud_poll_seconds": self.coordinator.update_interval.total_seconds() if self.coordinator.update_interval else None,
+            "cloud_requests_today": self.coordinator.api.requests_today if self.coordinator.api else None,
         }
 
 

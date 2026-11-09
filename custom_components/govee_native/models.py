@@ -135,6 +135,11 @@ class Device:
                 continue
             if "state" in item:
                 value = item["state"].get("value")
+                if (key in self.assumed_keys and monotonic() - self.state_times.get(key, 0) < 6
+                        and value != self.states.get(key)):
+                    # A cloud cache immediately after a write is often older
+                    # than the command. Real push reports bypass this grace.
+                    continue
                 # Govee uses '' for values that cannot be queried.
                 if value is not None and value != "":
                     self.states[key] = value
