@@ -10,7 +10,7 @@ The integration also registers these actions under the **`govee_native`** domain
 |---|---|---|
 | `govee_native.set_segments` | `device_id`, `segments`, exactly one of `rgb` or `brightness` | Sets advertised RGBIC regions. H6199 RGB regions are numbered 0–14; independent brightness needs an advertised capability or the known H1232/H1252 native protocol. |
 | `govee_native.send_capability` | `device_id`, `capability_type`, `instance`, `value` | Validates and sends a capability advertised for that device. |
-| `govee_native.refresh_scenes` | `device_id` | Refreshes the device's scene catalog. |
+| `govee_native.refresh_scenes` | `device_id` | Fetches the device's available scene and DIY catalogs immediately. Replaces the choices for each returned Developer API capability. |
 | `govee_native.refresh_app_catalogs` | None | Refreshes available app catalogs; may reload the entry if its executable shortcuts change. |
 | `govee_native.request_app_status` | `device_id` | Requests device status over the account MQTT connection. |
 | `govee_native.app_request` | `operation`; optional `entry_id`, `query`, `body` | Calls an allowlisted private route; writes require the advanced-write option. |

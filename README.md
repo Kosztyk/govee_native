@@ -7,7 +7,7 @@
 Control Govee devices from Home Assistant using a Govee Home account, the
 Developer API, and supported local connections.
 
-**Version:** 0.5.2 · **Home Assistant:** 2026.11.0 or newer ·
+**Version:** [0.5.3](https://github.com/Kosztyk/govee_native/releases/tag/v0.5.3) · **Home Assistant:** 2026.11.0 or newer ·
 **Integration domain:** `govee_native`
 
 This is a community custom integration. It discovers the capabilities available
@@ -39,6 +39,8 @@ Video Style, Video Saturation and music controls. They survive integration
 reloads and Home Assistant restarts. Empty readbacks keep the last value;
 valid device feedback updates it. Restored settings remain marked as assumed.
 The Scene and DIY selector displays the last successfully selected action.
+Since 0.5.3, device rediscovery keeps the scene IDs loaded from the Developer
+API catalogs. Use **Refresh scenes** to pick up added, renamed or deleted DIYs.
 
 Device and firmware support varies. This integration does not reproduce every
 feature of the Govee Home app. See [feature coverage](docs/FEATURE_MATRIX.md).
@@ -55,20 +57,17 @@ feature of the Govee Home app. See [feature coverage](docs/FEATURE_MATRIX.md).
 ## Install through Home Assistant Marketplace
 
 1. Open **Settings → Marketplace**.
-2. Select **Add from link** and enter:
-   `https://github.com/Kosztyk/govee_native`
-3. Select **Add**. If asked for a type, select **Integration**.
-4. Open **Govee Native** in the repository list and install it.
-5. Restart Home Assistant, then follow the setup steps below.
+2. Search for **Govee Native**, open it, and select **Install**.
+3. Restart Home Assistant, then follow the setup steps below.
 
-Connect GitHub in the Marketplace if prompted. This installation method adds
-the project as a custom repository; it does not require it to be listed in the
-default catalog. See the [official Marketplace guide](https://www.home-assistant.io/integrations/marketplace/#custom-repositories).
+If it has not appeared in your catalog yet, use **Add from link** with
+`https://github.com/Kosztyk/govee_native`. Connect GitHub if prompted.
+See [Installation](docs/INSTALLATION.md) for details.
 
 ## Install manually from GitHub
 
-1. Download this repository using **Code → Download ZIP**. When releases are
-   available, you can instead download the source ZIP for the version you want.
+1. Open [Releases](https://github.com/Kosztyk/govee_native/releases) and download
+   **Source code (zip)** for the version you want.
 2. Extract the ZIP.
 3. Copy **only** `custom_components/govee_native` into your Home Assistant
    configuration directory. The installed manifest must be at:
@@ -126,13 +125,10 @@ All options, firmware profiles and connection priorities are explained in
 
 ## How it was tested
 
-The 0.5.2 software regression suite passed **184 tests** against real Home
-Assistant **2026.11.0** classes on Python **3.14.9**. Tests cover MQTT routing and
-confirmation, queue coalescing, segment discovery/batching/restoration, encrypted Bluetooth,
-API budget/backoff, model-specific state decoding, LAN freshness, state reconciliation,
-entity setup/unload, options validation, saved selections, credential isolation,
-cached MQTT TLS, reauthentication errors and consistent slider states. Runtime
-lint checks and Python compilation also passed.
+Version 0.5.3 passed **189 tests** against Home Assistant **2026.11.0** on Python
+**3.14.10**. Five new cases cover DIY activation after rediscovery, stale or
+missing discovery entries, and catalog refreshes. Runtime lint and Python
+compilation also passed.
 
 HTTP, MQTT and Bluetooth device boundaries are simulated in these tests. They
 do not establish physical compatibility for every device or firmware. The

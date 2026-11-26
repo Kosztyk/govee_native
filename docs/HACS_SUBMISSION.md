@@ -1,8 +1,9 @@
-# HACS catalog submission
+# HACS catalog and release validation
 
 This repository uses the `govee_native` domain and the integration layout
-`custom_components/govee_native`. It can already be added to the Marketplace
-as a custom repository; a catalog PR makes it discoverable without adding a link.
+`custom_components/govee_native`. Govee Native is listed in the default catalog
+following [hacs/default #13751](https://github.com/hacs/default/pull/13751).
+See [Installation](INSTALLATION.md) for Marketplace and manual setup.
 
 ## Required repository files
 
@@ -33,18 +34,13 @@ Before submitting, open the successful runs for the exact revision being
 released. Include direct links to the HACS and hassfest runs in the catalog PR.
 The local Python suite supplements these checks; it does not replace them.
 
-## Prepare the catalog PR
+## Validate a release
 
 1. Confirm the repository description, topics and issue tracker are present.
-2. Check that HACS and hassfest pass without skipping checks.
-3. Publish a full release of the passing files. Its version must match the
-   integration manifest; include the existing license in distribution archives.
-4. Fork [hacs/default](https://github.com/hacs/default) and create a branch from
-   `master`. Add `Kosztyk/govee_native` to the JSON list in `integration`, in
-   alphabetical order.
-5. Open the PR from the owner's account and complete the current upstream
-   template with the release and passing-run links. Do not request individual
-   reviewer assignments unless a reviewer explicitly asks you to re-request review.
+2. Run Tests, HACS and Hassfest on the release commit and check the results.
+3. Publish the GitHub release from that commit. The tag version must match the
+   integration manifest. Include the existing license in distribution archives.
+4. Link the passing runs in the release notes.
 
 ## Review corrections in 0.5.2
 

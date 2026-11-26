@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.3
+
+- Keep loaded Developer API scene and DIY selections usable through the 15-minute device rediscovery. Keep their IDs, validation schema and control route together when inventory is stale or omits a catalog capability.
+- Replace the choices for each refreshed scene capability and remove options the returned catalog has dropped. Retain the last loaded catalog when its refresh fails.
+- Add five regression cases for [issue #1](https://github.com/Kosztyk/govee_native/issues/1). Thanks to UPEngineer for the report, initial patch and Curtain Lights test.
+- Update installation instructions following acceptance into the default catalog.
+
 ## 0.5.2
 
 - Remove the option to read another integration's Developer API credentials. Only a key entered directly in Govee Native is used; the retired flag is removed from Native's saved options, forms and translations.

@@ -5,7 +5,7 @@ boundaries are simulated; these tests do not imply physical hardware tests.
 """
 import asyncio
 import json
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, call, patch
 from types import SimpleNamespace
 import pytest
 
@@ -13,12 +13,13 @@ from custom_components.govee_native import coordinator as coordinator_module
 from custom_components.govee_native.api import GoveeError, GoveeAuthError
 from custom_components.govee_native.app_mqtt import GoveeAppMqtt
 from custom_components.govee_native.bluetooth import GoveeBluetooth
-from custom_components.govee_native.const import ON_OFF, COLOR, RANGE, MODE, TOGGLE, SEGMENT, VERSION
+from custom_components.govee_native.const import ON_OFF, COLOR, RANGE, MODE, TOGGLE, SEGMENT, SCENE, DIY_COLOR, VERSION
 from custom_components.govee_native.diagnostics import async_get_config_entry_diagnostics
 from custom_components.govee_native.entity import GoveeEntity
 from custom_components.govee_native.h6199 import frame
 from custom_components.govee_native.lan import GoveeLan
 from custom_components.govee_native.light import GoveeLight
+from custom_components.govee_native.select import GoveeSceneSelect
 from custom_components.govee_native.sensor import GoveeAppConnectionSensor
 from conftest import make_device
 
@@ -150,6 +151,115 @@ async def test_discovery_merge_keeps_entity_device_object(coordinator):
     c._merge_device(fresh)
     assert c.devices[d.device_id] is d
     assert d.name == "Renamed backlight" and d.state(ON_OFF, "powerSwitch") == 1
+
+
+def scene_capability(kind, instance, **options):
+    return {
+        "type": kind, "instance": instance,
+        "parameters": {
+            "dataType": "ENUM",
+            "options": [{"name": name, "value": value} for name, value in options.items()],
+        },
+    }
+
+
+def curtain_cloud_api(c, *capabilities):
+    device_id = next(iter(c.devices))
+    c.devices.clear()
+    api = SimpleNamespace(
+        devices=AsyncMock(return_value=[{
+            "device": device_id, "sku": "H70B1", "deviceName": "Curtain lights",
+            "type": "devices.types.light", "capabilities": list(capabilities),
+        }]),
+        scenes=AsyncMock(),
+        control=AsyncMock(),
+        poll_interval=lambda interval, _count: interval,
+        can_poll=lambda: False,
+    )
+    c.api = api
+    return api
+
+
+@pytest.mark.parametrize("discovered_diy", ["empty", "missing", "stale"])
+async def test_rediscovery_keeps_loaded_diy_catalog(coordinator, monkeypatch, discovered_diy):
+    c = coordinator
+    clock = [1000.0]
+    monkeypatch.setattr(coordinator_module, "monotonic", lambda: clock[0])
+    api = curtain_cloud_api(c, scene_capability(DIY_COLOR, "diyScene"))
+    api.scenes.side_effect = [
+        {"capabilities": []},
+        {"capabilities": [scene_capability(DIY_COLOR, "diyScene", Aurora=42)]},
+    ]
+    await c.async_discover()
+    device = next(iter(c.devices.values()))
+    select = GoveeSceneSelect(c, device)
+    await c.async_load_scenes(device)
+    await select.async_select_option("DIY: Aurora")
+
+    row = api.devices.return_value[0]
+    row["deviceName"] = "Renamed curtain lights"
+    row["capabilities"] = {
+        "empty": [scene_capability(DIY_COLOR, "diyScene")],
+        "missing": [],
+        "stale": [scene_capability(DIY_COLOR, "diyScene", Aurora=7, Obsolete=8)],
+    }[discovered_diy]
+    clock[0] += 901
+    await c._async_update_data()
+
+    assert c.devices[device.device_id] is device
+    assert device.name == "Renamed curtain lights"
+    assert "DIY: Aurora" in select.options
+    await select.async_select_option("DIY: Aurora")
+    request = call(device.sku, device.device_id, DIY_COLOR, "diyScene", 42)
+    assert api.control.await_args_list == [request, request]
+    assert "DIY: Obsolete" not in select.options
+    assert api.devices.await_count == 2
+    assert api.scenes.await_count == 2
+
+
+async def test_rediscovery_updates_capability_when_its_catalog_fetch_failed(coordinator):
+    c = coordinator
+    api = curtain_cloud_api(c, scene_capability(DIY_COLOR, "diyScene", Aurora=7))
+    api.scenes.side_effect = [
+        {"capabilities": [scene_capability(SCENE, "lightScene", Sunset=5)]},
+        GoveeError("DIY catalog temporarily unavailable"),
+    ]
+    await c.async_discover()
+    device = next(iter(c.devices.values()))
+    await c.async_load_scenes(device)
+    api.devices.return_value[0]["capabilities"] = [scene_capability(DIY_COLOR, "diyScene", Aurora=42)]
+    await c.async_discover()
+
+    select = GoveeSceneSelect(c, device)
+    await select.async_select_option("DIY: Aurora")
+    await select.async_select_option("Scene: Sunset")
+    assert api.control.await_args_list == [
+        call(device.sku, device.device_id, DIY_COLOR, "diyScene", 42),
+        call(device.sku, device.device_id, SCENE, "lightScene", 5),
+    ]
+
+
+async def test_refresh_replaces_diy_options_and_keeps_other_scene_sources(coordinator):
+    c = coordinator
+    api = curtain_cloud_api(c, scene_capability(DIY_COLOR, "diyScene"))
+    api.scenes.side_effect = [
+        {"capabilities": [scene_capability(SCENE, "lightScene", Sunset=5)]},
+        {"capabilities": [scene_capability(DIY_COLOR, "diyScene", Aurora=42, Removed=8)]},
+        GoveeError("Regular scene catalog temporarily unavailable"),
+        {"capabilities": [scene_capability(DIY_COLOR, "diyScene", Aurora=43)]},
+    ]
+    await c.async_discover()
+    device = next(iter(c.devices.values()))
+    await c.async_load_scenes(device)
+    device.scene_labels["App: Shortcut"] = {"source": "one_click", "shortcut_id": "test"}
+    select = GoveeSceneSelect(c, device)
+    assert "DIY: Removed" in select.options
+
+    await c.async_load_scenes(device, refresh=True)
+    await c.async_discover()
+    assert select.options == ["App: Shortcut", "DIY: Aurora", "Scene: Sunset"]
+    await select.async_select_option("DIY: Aurora")
+    api.control.assert_awaited_once_with(device.sku, device.device_id, DIY_COLOR, "diyScene", 43)
 
 
 async def test_recent_push_avoids_cloud_state_poll(coordinator):

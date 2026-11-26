@@ -1,4 +1,4 @@
-# Response, segments and model support in 0.5.1
+# Response, segments and model support
 
 ## What changes when you click a control
 
@@ -107,7 +107,13 @@ Recent local reports skip unnecessary cloud reads for a bounded number of
 cycles, then reconcile. Devices with every registered entity disabled are
 not read. Pushes do not postpone pending polls of unrelated devices. Private
 app reads and MQTT status queries run independently of a slowed Developer API
-poll. Concurrent scene fetches share a cache; **Refresh scenes** bypasses it.
+poll. Concurrent scene fetches share a cache. An ordinary catalog load reuses
+a recent result for up to six hours, and **Refresh scenes** fetches immediately.
+
+Inventory rediscovery runs separately about every 15 minutes. Since 0.5.3, it
+preserves the choices and routing for scene capabilities already loaded from
+the Developer API catalogs. A refresh updates the choices for each capability
+returned by the catalog.
 
 ## Verify an upgrade
 

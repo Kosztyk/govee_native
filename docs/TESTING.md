@@ -2,15 +2,14 @@
 
 ## Recorded environment
 
-- CPython 3.14.9 on Linux.
+- CPython 3.14.10 on Linux.
 - Home Assistant 2026.11.0, using its real entity, coordinator, config-entry and selector classes.
 - aiomqtt 2.5.1 and the pinned Bluetooth/testing dependencies in
   [`requirements-test.txt`](../requirements-test.txt).
 
-The 0.5.2 suite passed **184 tests**, with zero failures. Five warnings came
-from Home Assistant HTTP/backoff dependencies. The runtime `F` and `E9` lint
-checks and Python compilation passed. The suite was rerun for this repository
-HACS preparation after the manifest metadata and version were updated.
+The 0.5.3 suite passed **189 tests**. Five warnings came from Home Assistant
+HTTP and backoff dependencies. Runtime `F` and `E9` lint checks and Python
+compilation passed.
 
 ## What the tests cover
 
@@ -25,6 +24,7 @@ HACS preparation after the manifest metadata and version were updated.
 | Entities | Platform construction, stable unique IDs, setup/unload and action cleanup. |
 | Controls | Real HA state serialization through startup, unconfirmed on/off commands and later device feedback for slider controls. |
 | Selection retention | Actual HA Store save/load and coordinator recreation; zero-valued choices, video/music parameters, numerical controls, toggles, structured work modes, scenes, invalid readbacks and HA restore fallback. No commands are resent by restoration. |
+| Scene catalogs | Activates the same DIY before and after advancing the test clock past the 15-minute rediscovery interval. Covers empty, missing and stale discovery entries, partial catalog failures, and removal of deleted choices on refresh. |
 | Options | Existing device settings and explicit entity disables are retained; Bluetooth and segment forms submit correctly. |
 | HACS review fixes | Setup rejects access to another integration's entries, uses only its own key, and discards the retired option. Official MQTT events use the cached verified SSL context with certificate loading forbidden in the test. Reauth handles rejected email-code requests and completes after a successful retry. |
 | RGBIC | Generic discovery, model overrides, batch limits, grouping, real brightness writes, invalid-value rejection and restored colours. |
@@ -78,3 +78,8 @@ ordinary save-path check does not certify every browser interaction or input.
    was retained. Include this step when reporting an options-form issue.
 6. Test existing automations with the intended Native entities before retiring
    another integration.
+7. For the DIY regression, select a **DIY:** option shortly after restarting,
+   then select it again after 15–20 minutes without using **Refresh scenes**
+   in between. Verify that the light plays it both times. The reporter verified
+   their original patch on Curtain Lights. The release regression tests simulate
+   the Govee responses. [Issue #1](https://github.com/Kosztyk/govee_native/issues/1)

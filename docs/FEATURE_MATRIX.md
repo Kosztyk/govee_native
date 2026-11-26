@@ -1,4 +1,4 @@
-# Feature coverage — 0.5.0
+# Feature coverage
 
 “Implemented” means code exists and its packet/state behavior was tested locally.
 It does not mean every feature was physically exercised on every H6199.
@@ -27,7 +27,7 @@ It does not mean every feature was physically exercised on every H6199.
 | Device microphone music modes | Added H6199 profiles | Original packet modes or later V3 effects; compatible firmware needed |
 | Microphone sensitivity | Added | No phone microphone capture or audio streaming |
 | Built-in native scene presets | Added eight captured H6199 presets | Broader API scene catalog retained; static APK catalog membership is not proof of device compatibility |
-| Developer API scenes, DIY and snapshots | Existing discovery/control retained, merge improved | Requires advertised capability and valid optional key; selected effect may not be retrievable |
+| Developer API scenes, DIY and snapshots | Scene and DIY catalogs survive inventory rediscovery as of 0.5.3 | Requires a supported capability and a valid Developer API key. Govee may omit the active effect from status reports. |
 | App Tap-to-Run | Existing exact-packet execution retained | Only executable packets for account-owned devices are exposed; availability depends on the account catalog |
 | App groups | Read catalog retained | No full cloud group membership/editor implementation |
 | Circadian rhythms and vendor schedules | Not implemented as app-equivalent editors | HA automations can call the exposed entities, but are not a port of the Govee editor |

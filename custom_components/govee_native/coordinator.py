@@ -84,6 +84,7 @@ class GoveeCoordinator(DataUpdateCoordinator[dict[str, Device]]):
         self._runtime_data = {}
         self._scene_loaded_at: dict[str, float] = {}
         self._scene_locks: dict[str, asyncio.Lock] = {}
+        self._scene_catalog_keys: dict[str, set[tuple[str, str]]] = {}
         self._last_status_sent = None
         self._query_strikes: dict[str, int] = {}
         self._query_quarantine: set[str] = set()
@@ -218,14 +219,22 @@ class GoveeCoordinator(DataUpdateCoordinator[dict[str, Device]]):
         current = self.devices.get(incoming.device_id)
         if current:
             current.name, current.sku = incoming.name, incoming.sku
-            current.capabilities.update(incoming.capabilities)
-            current.scene_labels.update(incoming.scene_labels)
+            # Catalogs provide the device's scene IDs. Keep their schema, labels,
+            # and OpenAPI routing together when merging the device inventory.
+            catalog_keys = self._scene_catalog_keys.get(incoming.device_id, set())
+            current.capabilities.update({
+                key: cap for key, cap in incoming.capabilities.items() if key not in catalog_keys
+            })
+            current.scene_labels.update({
+                label: scene for label, scene in incoming.scene_labels.items()
+                if (scene.get("type"), scene.get("instance")) not in catalog_keys
+            })
             if incoming.app_source:
                 current.app_source = True
                 current.app_data = incoming.app_data
             if incoming.cloud_source:
                 current.cloud_source = True
-                current.cloud_capabilities = incoming.cloud_capabilities
+                current.cloud_capabilities = incoming.cloud_capabilities | catalog_keys
                 current.kind = incoming.kind
         else:
             current = incoming
@@ -689,10 +698,16 @@ class GoveeCoordinator(DataUpdateCoordinator[dict[str, Device]]):
                 except GoveeError:continue
                 success = True
                 for cap in payload.get("capabilities",[]):
-                    typ=cap.get("type");instance=cap.get("instance")
-                    if typ not in (SCENE,DIY_COLOR) or not instance:continue
-                    device.capabilities[(typ,instance)]=cap
-                    device.cloud_capabilities.add((typ, instance))
+                    typ, instance = cap.get("type"), cap.get("instance")
+                    if typ not in (SCENE, DIY_COLOR) or not instance:
+                        continue
+                    key = (typ, instance)
+                    device.capabilities[key] = cap
+                    device.cloud_capabilities.add(key)
+                    self._scene_catalog_keys.setdefault(device.device_id, set()).add(key)
+                    for label, scene in list(device.scene_labels.items()):
+                        if (scene.get("type"), scene.get("instance")) == key:
+                            del device.scene_labels[label]
                     for opt in cap.get("parameters",{}).get("options",[]):
                         value,name=opt.get("value"),opt.get("name")
                         if name is None or value is None:continue

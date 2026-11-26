@@ -76,6 +76,17 @@ segment controls to choose individual or grouped lights. Check the device's
 entity list for explicitly user-disabled segments. A feature in Govee Home
 does not automatically imply a corresponding entity here.
 
+## DIY scenes fail about 15 minutes after startup
+
+In 0.5.2, inventory rediscovery could replace the DIY capability used for
+validation while the **Scene and DIY** selector still listed the scenes. The
+resulting error was `diyScene: invalid value for advertised schema`.
+
+Update to 0.5.3 and restart Home Assistant. Press **Refresh scenes** on the
+device page after changing its DIY catalog in Govee Home. If the error persists,
+report the integration version and device model in
+[issue #1](https://github.com/Kosztyk/govee_native/issues/1).
+
 ## Collect information for an issue
 
 Include Home Assistant and integration versions, device SKU/firmware, enabled
